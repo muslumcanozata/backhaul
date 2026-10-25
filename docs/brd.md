@@ -1,6 +1,6 @@
 # Backhaul — İş Gereksinimleri Belgesi
 
-Sürüm: 0.2  
+Sürüm: 0.3  
 Tarih: 25 Ekim 2026  
 Durum: Taslak, uygulama öncesi inceleme
 
@@ -31,7 +31,7 @@ Gidiş yükleri firmanın elindedir ve toplu girilir. Dönüş yükü ise havuzd
 - Yüklü tonajın yük kaydından, sensör varsa sensörden okunması
 - Boş ve boşalması belli araçlara planlama
 - Gidiş yüklerinin Excel veya CSV ile toplu girilmesi
-- Dönüş yüklerinin havuza alınması ve otomatik atanması
+- Dönüş yüklerinin navlunu belli fırsat olarak havuza alınması ve uygun tıra otomatik atanması
 - AETR sürüş, mola ve dinlenme sınırlarına göre planın elenmesi
 - Sınır aşımı ve aşım riski için uyarı kaydı
 - Atamanın neden seçildiğinin operasyoncuya gösterilmesi
@@ -71,9 +71,9 @@ Bir kullanıcı ilk sürümde tek firmaya bağlıdır. Platform yöneticisi firm
 
 ### Dönüş
 
-1. Dönüş yükü tek tek veya aynı dosyayla havuza girer.
-2. Bir araç teslimatla boşaldığında, ya da boşalacağı zaman ve yer belli olduğunda, sistem havuzu yeniden hesaplar.
-3. Her uygun araç–yük çifti için boş kilometre, dolu kilometre, navlun ve yasal varış bakılır.
+1. Dönüş fırsatı, navlunuyla birlikte tek tek veya aynı dosyayla havuza girer. Navlunu olmayan satır havuza düşmez.
+2. Bir araç teslimatla boşaldığında, ya da dönüşte boşalacağı zaman ve yer belli olduğunda, sistem havuzu yeniden hesaplar.
+3. Her uygun araç–fırsat çifti için boş kilometre, dolu kilometre, navlun ve yasal varış bakılır.
 4. Sistem her araca en fazla bir, her yüke en fazla bir atama yapar ve kaydeder.
 5. Firma ayarı otomatik ise atama kesinleşir. Firma onayı açtıysa operasyoncu onaylar.
 6. Kesinleşen atama şoföre Netgsm ile SMS olarak gider. Netgsm gönderimi kabul edince atama kilitlenir.
@@ -87,7 +87,7 @@ Bir kullanıcı ilk sürümde tek firmaya bağlıdır. Platform yöneticisi firm
 | BR-2 | Operasyoncu aracın kaç ton yüklü olduğunu görür. | Önce açık yükün tonajı, sensör varsa sensör, gerekirse operasyoncu düzeltmesi. |
 | BR-3 | Dolu araca yeni yük yazılamaz. | Plan yalnızca boş araca veya mevcut işi yeni yüklemeden önce biten araca açılır. |
 | BR-4 | Gidiş yükleri tek tek yazılmadan sisteme girer. | Dosya içe aktarımı, satır satır hata raporu ve referans numarasıyla tekrar yükleme. |
-| BR-5 | Dönüş yükü, havuzdaki seçenekler içinde en yüksek faydayı veren araca kendiliğinden bağlanır. | Fayda formülü, tek eşleşme ve otomatik atama modu. |
+| BR-5 | Dönüş fırsatı, havuzdaki navlunlu seçenekler içinde en yüksek faydayı veren uygun araca kendiliğinden bağlanır. | Fayda formülü, tek eşleşme ve otomatik atama modu. |
 | BR-6 | Üretilen hiçbir plan, yürürlükteki takograf sınırını aşan bir sürüş programı içeremez. | Sürüme bağlı kural paketi. Firma bu sınırları yalnızca daraltabilir. |
 | BR-7 | Sınır aşıldığında veya aşılmak üzereyken uyarı oluşur. | Uyarı kaydı, seviye ve kapatma. İlk sürümde bildirim uygulama içindedir. |
 | BR-8 | Arvento kullanan firma ile Seyir kullanan firma aynı ekranları kullanır. | Sağlayıcıya özel adaptör, ortak araç anlık görüntüsü. |
@@ -104,7 +104,7 @@ Bir kullanıcı ilk sürümde tek firmaya bağlıdır. Platform yöneticisi firm
 
 ### Filo
 
-- FR-2.1 Araç kaydında plaka, izleme sağlayıcısı, sağlayıcıdaki cihaz kimliği, taşıma kapasitesi (ton), dorse tipi ve dara vardır.
+- FR-2.1 Araç kaydında plaka, izleme sağlayıcısı, sağlayıcıdaki cihaz kimliği, taşıma kapasitesi (ton), dorse tipi ve dara vardır. Kapasite araca aittir. İlk müşterinin her tırı tentelidir ve kapasitesi 24 veya 25 tondur. Başka firmalar katalogdaki diğer kasa tiplerini ve kendi tonajlarını kullanır.
 - FR-2.2 Sürücü kaydında ad, takograf sürücü kartı kimliği ve Türkiye cep telefonu vardır. Telefon `5XXXXXXXXX` biçimine getirilir. Araçla sürücü eşlemesi hem elle hem takip sisteminden gelen kart okumasıyla güncellenir.
 - FR-2.3 Araç `serviste`, `bakımda` veya `arıza` durumundadır. Bakım ve arıza planlamaya kapalıdır.
 
@@ -120,12 +120,12 @@ Bir kullanıcı ilk sürümde tek firmaya bağlıdır. Platform yöneticisi firm
 
 ### Yük ve toplu giriş
 
-- FR-4.1 Yükün yönü gidiş veya dönüştür. Zorunlu alanlar: firma içi tekil referans, yükleme ili ve ilçesi, boşaltma ili ve ilçesi, tonaj, dorse tipi, hazır zamanı, teslim penceresi.
+- FR-4.1 Yükün yönü gidiş veya dönüştür. Dönüş kaydı havuzda fırsat olarak durur. Zorunlu alanlar: firma içi tekil referans, yükleme ili ve ilçesi, boşaltma ili ve ilçesi, tonaj, dorse tipi, hazır zamanı, teslim penceresi. Dönüş fırsatında navlun da zorunludur.
 - FR-4.2 Adres metni koordinata çevrilir. Çevrilemeyen satır havuza düşmez; operasyoncu adresi düzeltir.
 - FR-4.3 Toplu dosya `.xlsx` veya `.csv` olur. Geçerli satırlar kaydolur. Hatalı satırlar kaydolmaz ve neden koduyla rapora yazılır.
 - FR-4.4 Aynı referans yeniden yüklenirse, yük henüz atanmamışsa güncellenir. Atanmış, yoldaki veya teslim edilmiş yük dosyadan değiştirilemez.
-- FR-4.5 Yön boş bırakılırsa satır gidiş sayılır. Dönüş satırları havuza, gidiş satırları operasyoncunun atama kuyruğuna gider.
-- FR-4.6 Navlun, Türk lirası olarak opsiyoneldir. Dönüşte navlun yoksa sistem [yedek fayda formülünü](is-kurallari.md) kullanır.
+- FR-4.5 Yön boş bırakılırsa satır gidiş sayılır. Dönüş satırları fırsat olarak havuza, gidiş satırları operasyoncunun atama kuyruğuna gider.
+- FR-4.6 Gidiş navlunu opsiyoneldir. Dönüş fırsatının navlunu Türk lirası olarak zorunludur. Navlunsuz dönüş satırı kaydolmaz.
 - FR-4.7 İlk sürümde bir sefer bir yük taşır. Tonaj, araç kapasitesini aşıyorsa o araca önerilmez.
 
 ### Gidiş planı
@@ -136,7 +136,7 @@ Bir kullanıcı ilk sürümde tek firmaya bağlıdır. Platform yöneticisi firm
 
 ### Dönüş planı
 
-- FR-6.1 Havuzdaki her dönüş yükü, planlanabilir araçlarla karşılaştırılır.
+- FR-6.1 Havuzdaki her dönüş fırsatı, dönüşte boşalacak veya boş olan planlanabilir araçlarla karşılaştırılır. Kasa tipi ve kalan tonaj uymayan çift elenir.
 - FR-6.2 Sistem, firmanın tüm uygun çiftleri birlikte çözerek toplam faydası en yüksek birebir eşleşmeyi yazar. Açgözlü biçimde yükleri tek tek kapmak bu çözümü karşılamaz.
 - FR-6.3 Varsayılan firma ayarı otomatik atamadır. Firma yöneticisi, atamanın operasyoncu onayıyla kesinleşmesini açabilir.
 - FR-6.4 Netgsm gönderimi kabul edilmiş bir atama, hâlâ yasal ve yük duruyorsa, daha kârlı bir eşleşme çıksa bile yerinde kalır. Kabul öncesinde, yeni çözüm firma eşiğinden (başlangıç yüzde 15) daha iyiye gidiyorsa değişebilir.
@@ -191,9 +191,7 @@ Arvento ilk sürümün konum kaynağı olarak `GetVehicleStatus` ailesini kullan
 
 Seyir’in kamuya açık bir servis sözleşmesi bulunamadı. İlk sürüm Seyir adaptörünü aynı anlık görüntüye bağlar. Uç adres, kimlik doğrulama ve alan adları firmanın Seyir sözleşmesinden alınır. Sözleşme gelmeden Seyir adaptörü canlı veri çekmez; ekran ve kurallar Arvento veya elle girilen konumla çalışır.
 
-Yol mesafesi ve süresi bir yol ağı hizmetinden gelir. Hizmet cevap vermezse kuş uçuşu mesafe 1,3 ile çarpılarak yalnızca taslak sıralama yapılır ve sonuç `yaklaşık` işaretlenir. Yaklaşık mesafe, otomatik dönüş atamasını kesinleştirmez.
-
-Adresler Türkiye il ve ilçe sözlüğüyle doğrulanır, sonra koordinata çevrilir. Koordinat sağlayıcısı değiştirilebilir bir arayüzün arkasındadır.
+Adres çözümü ve yol mesafesi Google Maps ile alınır. Adres, il ve ilçe sözlüğünden geçtikten sonra Geocoding API ile koordinata çevrilir. Boş ve dolu kilometre ile sürüş süresi, Routes API rota matrisinden gelir. Canlı trafik plana katılmaz. Aynı girdi aynı süreyi versin diye süre, trafiksiz sürüş süresidir. Google cevap vermezse kuş uçuşu mesafe 1,3 ile çarpılarak yalnızca taslak sıralama yapılır ve sonuç `yaklaşık` işaretlenir. Yaklaşık mesafe, otomatik dönüş atamasını kesinleştirmez. Operasyon haritası Maps JavaScript API ile çizilir. Sunucu anahtarı ile tarayıcı anahtarı ayrıdır.
 
 Rota SMS’i Netgsm REST v2 ile gider: `POST https://api.netgsm.com.tr/sms/rest/v2/send`. Kimlik, HTTP Basic ile kullanıcı kodu ve API şifresidir. Gövde onaylı `msgheader`, Türkçe `encoding` ve alıcı listesi taşır. İletim sonucu `POST /sms/rest/v2/report` ile iş kimliğinden okunur. Mesaj, firmanın kendi şoförüne giden operasyon duyurusudur. Ticari pazarlama gönderimi değildir. `iysfilter` bu nedenle kapalıdır. Başlığın Netgsm’de onaylı olması canlı gönderimin koşuludur.
 
@@ -207,7 +205,7 @@ Rota SMS’i Netgsm REST v2 ile gider: `POST https://api.netgsm.com.tr/sms/rest/
 - Operasyoncu, atamanın boş kilometresini, net faydasını ve elenme gerekçesini ek bir hesap yapmadan okur.
 - Konum sinyali eşiği aşınca araç planlanabilir listesinden çıkar ve uyarı açılır.
 - İki firmanın verisi çapraz sorguda birbirine karışmaz.
-- 100 araç ve 100 havuz yükünde eşleşme hesabı 10 saniyenin altında biter. Bu süre yol ağı çağrılarının önbellekli olduğu duruma aittir.
+- 100 araç ve 100 fırsatta eşleşme hesabı 10 saniyenin altında biter. Bu süre, elemeden sonra kalan Google mesafe çağrılarının önbellekli olduğu duruma aittir.
 - `atandi` olan her sefer için tek bir atama SMS’i kuyruğa yazılır. Netgsm kabulü atamayı kilitler. Aynı olay ikinci SMS üretmez.
 
 İş sonucu, pilotun ilk ayında boş kilometresinin ve süresinde yetişen teslimat oranının firma bazında raporlanmasıdır. Hedef oran sözleşme sırasında firmayla konur; ürün hedefi bu raporu üretebilmektir.
@@ -217,7 +215,9 @@ Rota SMS’i Netgsm REST v2 ile gider: `POST https://api.netgsm.com.tr/sms/rest/
 - Taşıma komple tırdır. Bir seferde bir yük vardır.
 - Araçta bir sürücü vardır.
 - Gidiş yükünün aracı operasyoncu tarafından seçilir. Sistem adayları sıralar.
-- Dönüş ataması otomatiktir. Onay adımı firma isterse açılır.
+- Dönüş ataması otomatiktir. Havuzdaki kayıt bir fırsattır ve navlunu girişte bellidir. Onay adımı firma isterse açılır.
+- İlk müşterinin tırları tentelidir. Her aracın kapasitesi 24 veya 25 tondur. Ürün kataloğu tenteli, frigolu, sal, lowbed ve tankeri de taşır. Firma kullandığı tipleri açar.
+- Adres ve yol mesafesi Google Maps’tir.
 - Yasal sınır, Karayolu Taşıma Yönetmeliği madde 35’in zorunlu tuttuğu AETR’dir. Türkiye içi sefer de bu pakete tabidir.
 - Fayda hesabının birimi Türk lirası ve kilometredir.
 - Şoföre mobil uygulama yoktur. Yük ve rota Netgsm SMS’i ile gider.
@@ -227,14 +227,14 @@ Rota SMS’i Netgsm REST v2 ile gider: `POST https://api.netgsm.com.tr/sms/rest/
 
 Bunlar belgeyi bekletmez. Adaptörün canlıya çıkmasını bekletir.
 
-| No | Soru | Etkisi |
+| No | Soru | Durum |
 | --- | --- | --- |
-| A-1 | Pilot firmaların Arvento hesabında takograf modülü ve aks ağırlığı açık mı? | Açık değilse takograf `tahmini`, tonaj yalnızca yük kaydından gelir. |
-| A-2 | Seyir web servisinin adresi, kimlik yöntemi ve örnek cevabı nedir? | Seyir adaptörünün yazılması. |
-| A-3 | Dönüş navlunu havuza girerken biliniyor mu? | Bilinmiyorsa yedek formül (dolu kilometre eksi cezalı boş kilometre) esas olur. |
-| A-4 | Kullanılan dorse tipleri hangileri? | Eşleşme listesi. Başlangıç: tenteli, frigolu, sal, lowbed, tanker. Uymayanlar birbirine atanmaz. |
-| A-5 | Adres ve yol ağı için hangi ticari hizmet kullanılacak? | Arayüz hazır olur, sağlayıcı uygulama başında seçilir. |
-| A-6 | Platform Netgsm hesabının onaylı gönderici başlığı nedir? | Başlık onaylanmadan canlı SMS çıkmaz. Kuyruk ve kilit kuralları başlıksız da test edilir. |
+| A-1 | Pilot Arvento hesabında takograf modülü ve aks ağırlığı açık mı? | Ertelendi. Hesap örneği gelene kadar takograf `tahmini`, tonaj yük kaydındandır. Sensör alanı örnek cevapta yoksa boş kalır. |
+| A-2 | Seyir servisinin adresi, kimlik yöntemi ve örnek cevabı nedir? | Ertelendi. Şirketten talep edilecek. Sözleşme gelmeden Seyir canlı veri çekmez. |
+| A-3 | Dönüş navlunu havuza girerken biliniyor mu? | Kapandı. Dönüş kaydı fırsattır, navlunuyla girer. Uygun tır, dönüşte bu navlunla otomatik eşleşir. |
+| A-4 | Dorse tipleri nelerdir? | Kapandı. Katalog: tenteli, frigolu, sal, lowbed, tanker. İlk müşterinin tamamı tenteli ve 24 veya 25 ton. |
+| A-5 | Adres ve yol mesafesi hangi hizmetten gelir? | Kapandı. Google Maps. Geocoding, Routes API ve harita için Maps JavaScript API. |
+| A-6 | Platform Netgsm hesabının onaylı gönderici başlığı nedir? | Açık. Başlık onaylanmadan canlı SMS çıkmaz. Kuyruk ve kilit kuralları başlıksız da test edilir. |
 
 ## 12. Kaynaklar
 
@@ -243,3 +243,4 @@ Bunlar belgeyi bekletmez. Adaptörün canlıya çıkmasını bekletir.
 - 20 Temmuz 1999 tarihli ve 4411 sayılı kanunun ekindeki AETR nüshası daha eski sınırlar içerir. Kural paketi o nüshadaki on beş günlük hesaba değil, yukarıdaki güncel uygulamaya göre kurulur. Üretim kapısında konsolide metinle teyit edilir.
 - Arvento rapor servisi: [ws.arvento.com/v1/report.asmx](https://ws.arvento.com/v1/report.asmx). Konum için `GetVehicleStatus` ailesi, takograf için `TachographActiveFleetReport` ve `CANBUSTachographLastStatus` kullanılır.
 - Netgsm SMS REST v2: [netgsm.com.tr/dokuman](https://www.netgsm.com.tr/dokuman). Gönderim `POST /sms/rest/v2/send`, iletim raporu `POST /sms/rest/v2/report`.
+- Google Geocoding API, Routes API rota matrisi ve Maps JavaScript API. Planlama süresi trafiksiz sürüş süresidir.

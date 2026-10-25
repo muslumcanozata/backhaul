@@ -31,6 +31,8 @@ Boş eşiği, firmanın belirlediği toleranstır. Başlangıç değeri daranın
 
 `yuklu` araç, teslim zamanı yeni yükün hazır zamanından önceyse `bosalacak` gibi planlanabilir. Yeni yükün bindirme noktası, mevcut boşaltma noktasıdır. Çakışan saat aralığına ikinci yük yazılmaz.
 
+Kasa kataloğu `tenteli`, `frigolu`, `sal`, `lowbed` ve `tanker`dir. Firma bu listeden kullandığı tipleri açar. Yükün kasa tipi, aracın kasa tipiyle aynı değilse çift elenir. İlk müşteride açık tip yalnızca `tenteli`dir. O firmadaki her aracın kapasitesi 24 veya 25 tondur. Başka firmada kapasite araç kaydındaki tondur. Ürün bu iki sayıyı her firmaya zorlamaz.
+
 ## 2. Yük durumları
 
 ```text
@@ -110,7 +112,7 @@ Günlük 10 saatlik uzatma, ancak o hafta ikiden az uzatma kullanıldıysa ve ş
 ### Planın süre hesabı
 
 1. Çıkış zamanı, yükün hazır zamanı ile aracın boşalma zamanının geç olanıdır.
-2. Boş kilometre ve dolu kilometre yol ağından süreye çevrilir.
+2. Boş kilometre ve dolu kilometre Google Routes API rota matrisinden, trafiksiz sürüş süresiyle süreye çevrilir.
 3. Sürüş 4,5 saati dolduruyorsa süreye 45 dakika mola eklenir. Yarım kalmış 15 dakikalık ilk parça varsa yalnızca kalan 30 dakika eklenir.
 4. Eklenen sürüş, günlük, haftalık ve iki haftalık kalan hakları aşarsa çift elenir. Günlük 9 saat dolmuş ve uzatma hakkı varsa 10 saate kadar devam edilir.
 5. Varış, teslim penceresinin içindeyse çift skorlanır. Değilse `WINDOW` ile elenir.
@@ -148,14 +150,15 @@ Başlangıç ön-uyarı payı 30 dakikadır. Firma bu payı büyütebilir, sıf�
 | `SMS_NO_PHONE` | uyarı | Atanan şoförün geçerli cep telefonu yok. Atama kilitlenmez |
 | `SMS_REJECTED` | uyarı | Netgsm gönderimi kabul etmedi |
 | `SMS_UNDELIVERED` | uyarı | Netgsm kabul etti, iletim raporu telefona ulaşmadı dedi |
+| `COST_RATES_MISSING` | uyarı | Firmanın boş ve dolu kilometre maliyeti yok. Dönüş hesabı çalışmaz |
 
 `NO_DRIVER_CARD`, sağlayıcı bu bilgiyi gönderdiğinde çalışır. Göndermiyorsa bu kod üretilmez ve `TACHO_ESTIMATED` açık kalır.
 
 ## 6. Fayda
 
-Amaç, firmanın o hesaptaki tüm çiftlerinin fayda toplamını en büyük yapmaktır. Tek yükün kendi en iyi aracını kapması, başka bir yükü aracsız bırakıp toplamı düşürüyorsa seçilmez.
+Dönüş havuzundaki her kayıt bir fırsattır. Navlunu girişte bellidir. Amaç, firmanın o hesaptaki tüm çiftlerinin fayda toplamını en büyük yapmaktır. Tek fırsatın kendi en iyi aracını kapması, başka bir fırsatı aracsız bırakıp toplamı düşürüyorsa seçilmez.
 
-Navlun girilmişse, Türk lirası:
+Dönüş faydası Türk lirasıdır:
 
 ```text
 fayda = navlun
@@ -163,27 +166,27 @@ fayda = navlun
       - dolu_km × dolu_km_maliyeti
 ```
 
-Navlun boşsa:
+`bos_km`, aracın boşalma konumu ile fırsatın yükleme noktası arasındaki Google yol mesafesidir. `dolu_km`, yükleme ile boşaltma arasındaki Google yol mesafesidir. İki maliyet katsayısı firma ayarıdır. Biri bile boşsa dönüş hesabı çalışmaz ve `COST_RATES_MISSING` açılır. Sistem eksik katsayının yerine fiyat uydurmaz.
+
+Gidiş sıralamasında navlun varsa aynı formül kullanılır. Gidiş navlunu boşsa sıralama şu yedek değerle yapılır ve otomatik atama doğurmaz:
 
 ```text
-fayda = dolu_km - bos_km × bos_km_ceza_katsayisi
+siralama = dolu_km - bos_km × 1,5
 ```
 
-Başlangıç katsayısı 1,5’tir. Bir boş kilometre, 1,5 dolu kilometreden pahalı sayılır. İki formül aynı havuz hesabında karıştırılmaz. Havuzda navlunu olan ve olmayan yük bir arada ise, navlunu olmayan yük yedek formülle skorlanır ve açıklamada birimi `km` olarak yazılır. Toplam, yalnızca aynı birimdeki çiftler arasında maksimize edilir. Birimli gruplar ayrı ayrı eşleştirilir.
-
-`bos_km`, aracın boşalma konumu ile yükleme noktası arasındaki yol mesafesidir. `dolu_km`, yükleme ile boşaltma arasındaki yol mesafesidir. Maliyet katsayıları firma ayarıdır, başlangıçta boş bırakılır. Boş bırakılan katsayı, navlun formülünü kullanılamaz hale getirir ve sistem o firma için yedek formüle düşer. Böylece uydurma bir liraya kilometre fiyatı atanmaz.
+Bir boş kilometre, 1,5 dolu kilometreden pahalı sayılır. Bu yedek değer dönüş havuzuna girmez.
 
 Gecikme formüle katılmaz. Pencere kaçıran çift zaten `WINDOW` ile elenmiştir.
 
 ### Eşleştirme
 
-1. Firma için planlanabilir araçlar ve `havuz` durumundaki dönüş yükleri alınır.
+1. Firma için planlanabilir araçlar ve `havuz` durumundaki dönüş fırsatları alınır. Araç, boşsa şu anki konumundan, dönüşte boşalacaksa teslim noktasından aday olur.
 2. Çiftler 3. bölümdeki kurallarla elenir.
 3. Kalan çiftlerin faydası hesaplanır. Negatif fayda da aday kalır; başka yasal seçenek yoksa boş kilometre, aracı boşta tutmaktan iyi olabilir. Firma `negatif_fayda_atanmasin` açarsa negatif çiftler düşer. Başlangıç değeri kapalıdır.
 4. Her araca en fazla bir yük, her yüke en fazla bir araç veren ve fayda toplamı en yüksek eşleşme seçilir. Çözüm tam eşleştirme algoritmasıyla bulunur. Araç veya yük sayısı diğerinden az ise açıkta kalanlar havuzda veya boşta durur.
 5. Kilitli atamalar 7. bölümdeki kurala göre çözümün dışında tutulur, kalan serbest araç ve yüklerle hesap tekrarlanır.
 
-Hesap şu olaylarda çalışır: havuza yük girmesi, yükün iptali, aracın teslimle boşalması, aracın planlanabilir hale gelmesi, operasyoncunun yeniden hesap istemesi. Konum her sinyalde hesabı tetiklemez.
+Hesap şu olaylarda çalışır: havuza fırsat girmesi, fırsatın iptali, aracın teslimle boşalması, aracın planlanabilir hale gelmesi, operasyoncunun yeniden hesap istemesi. Konum her sinyalde hesabı tetiklemez.
 
 ### Kararlılık
 
@@ -206,7 +209,8 @@ Satır reddi:
 | `ROW_TONNAGE` | Tonaj sayı değil veya sıfırdan büyük değil |
 | `ROW_WINDOW` | Teslim bitişi, hazır zamanından önce |
 | `ROW_PLACE` | İl veya ilçe sözlükte yok |
-| `ROW_TRAILER` | Dorse tipi firma listesinde yok |
+| `ROW_TRAILER` | Dorse tipi katalogda yok veya firmanın açık tipleri arasında yok |
+| `ROW_FREIGHT` | Dönüş satırında navlun yok, sayı değil veya sıfırdan büyük değil |
 | `ROW_DIRECTION` | Yön dolu ama `gidis` veya `donus` değil |
 | `ROW_LOCKED` | Referans atanmış bir yüke ait |
 | `ROW_GEOCODE` | Adres koordinata çözülemedi |

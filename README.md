@@ -1,6 +1,6 @@
 # Backhaul
 
-Türkiye içi karayolu taşımacılığı yapan firmalar için çok kiracılı tır planlama ürünü. Gidiş yükleri toplu girilir. Dönüş yükleri havuzdan, takograf sınırları ve boş kapasite içinde en yüksek faydayı verecek araca otomatik atanır. Araç konumu ve sürücü verisi Arvento ile Seyir üzerinden gelir. Kesinleşen yük ve rota şoföre Netgsm SMS’i ile gider.
+Türkiye içi karayolu taşımacılığı yapan firmalar için çok kiracılı tır planlama ürünü. Gidiş yükleri toplu girilir. Dönüş yükleri navlunu belli fırsat olarak havuza girer ve uygun tıra otomatik atanır. Araç konumu ve sürücü verisi Arvento ile Seyir üzerinden gelir. Adres ve yol mesafesi Google Maps’tedir. Kesinleşen yük ve rota şoföre Netgsm SMS’i ile gider.
 
 ## Dokümanlar
 
@@ -17,5 +17,6 @@ Uygulama iskeleti bu dokümanlar gözden geçirildikten sonra kurulur: `apps/api
 - Çok kiracılı ürün. Her kiracı bir nakliye firmasıdır.
 - Coğrafya Türkiye içidir. Sürüş ve dinlenme sınırları, Karayolu Taşıma Yönetmeliği madde 35 üzerinden AETR kural paketine bağlanır.
 - Bir araçta aynı anda tek yük ve tek sürücü vardır.
-- Gidiş atamasını operasyoncu yapar. Dönüş atamasını sistem yapar.
+- Gidiş atamasını operasyoncu yapar. Dönüş fırsatını sistem, navlun ve yol mesafesine göre atar.
+- İlk müşterinin tırları tentelidir. Kapasite araç başına 24 veya 25 tondur.
 - Şoföre mobil uygulama yoktur. Rota bildirimi Netgsm SMS’idir.

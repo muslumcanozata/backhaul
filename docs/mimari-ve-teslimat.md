@@ -13,7 +13,7 @@ Bu plan [iş gereksinimlerini](brd.md) ve [iş kurallarını](is-kurallari.md) i
 | D-5 | Firmalar aynı veritabanını paylaşır. Her operasyon tablosunda `tenant_id` vardır. Sorgu bu alan olmadan yazılmaz. |
 | D-6 | Takograf sayıları `TR-AETR-2026` kaydındadır. Plan, hesap anındaki paket kimliğini kopyalar. |
 | D-7 | Arvento ve Seyir, ortak `VehicleSnapshot` üreten adaptörlerdir. Planlama kodu sağlayıcı adı bilmez. |
-| D-8 | Yol mesafesi ve adres çözümleme de aynı şekilde arayüzün arkasındadır. Sağlayıcı, pilot firma seçilince bağlanır. |
+| D-8 | Adres Google Geocoding API, yol mesafesi ve süresi Google Routes API rota matrisi, operasyon haritası Maps JavaScript API ile alınır. Plan süresi trafiksiz sürüş süresidir. |
 | D-9 | Periyodik çekme ve eşleştirme, API sürecinden ayrı bir işleyicide çalışır. Kuyruk Redis’tedir. |
 | D-10 | Dönüş eşleşmesi tam atama problemidir. İlk sürümde OR-Tools’un atama çözücüsü kullanılır. |
 | D-11 | Rota SMS’i platformun tek Netgsm hesabından, REST v2 ile gider. Atama, Netgsm iş kimliği dönünce kilitlenir. |
@@ -44,13 +44,13 @@ flowchart LR
   worker[Isleyici]
   arvento[Arvento]
   seyir[Seyir]
-  road[Yol agi ve adres]
+  google[Google Maps]
   netgsm[Netgsm]
   ops --> web --> api --> db
   api --> queue --> worker
   worker --> arvento
   worker --> seyir
-  worker --> road
+  worker --> google
   worker --> netgsm
   worker --> db
 ```
@@ -106,7 +106,21 @@ Arvento eşlemesi:
 
 Seyir eşlemesi, A-2 kapanınca aynı tabloya bir sütun olarak eklenir. O zamana kadar Seyir hesabı “bekliyor” durumunda durur ve işleyici o hesap için istek atmaz.
 
-Ağırlık alanı bu tabloda bilinçli olarak yoktur. Arvento’nun genel rapor listesinde ayrı bir aks ağırlığı metodu görünmüyor. Faz 0’daki örnek cevapta alan varsa anlık görüntüye eklenir. Yoksa BR-2 yük kaydı ve operasyoncu düzeltmesiyle karşılanır.
+Ağırlık alanı bu tabloda bilinçli olarak yoktur. Arvento’nun genel rapor listesinde ayrı bir aks ağırlığı metodu görünmüyor. Pilot hesapta takograf ve aks ağırlığı açık mı bilinmiyor. Örnek cevap gelene kadar takograf `tahmini` kalır, tonaj yük kaydından gelir. Örnek cevapta ağırlık alanı varsa anlık görüntüye eklenir.
+
+### Google Maps
+
+Üç ayrı ürün kullanılır. Anahtarlar ortam sırrıdır.
+
+| İhtiyaç | Ürün | Nereden çağrılır |
+| --- | --- | --- |
+| Adres → koordinat | Geocoding API, `region=tr`, `language=tr` | İşleyici |
+| Kilometre ve trafiksiz süre | Routes API `computeRouteMatrix`, sürüş modu | İşleyici |
+| Operasyon haritası | Maps JavaScript API | Tarayıcı |
+
+Sunucu anahtarı yalnızca Geocoding ve Routes API’ye izin verir. Tarayıcı anahtarı yalnızca harita içindir ve site adresine kilitlenir. İkisi birbirinin yerine geçmez.
+
+Rota matrisi, elemeden sonra kalan çiftler için çağrılır. 100 araca 100 fırsatın tamamı Google’a gönderilmez. Aynı koordinat çifti önbelleğe yazılır. Önbellek anahtarı, koordinatların yaklaşık 100 metreye yuvarlanmış halidir. Google hata verirse çift `yaklaşık` olur ve otomatik atama o çifti kesinleştirmez.
 
 ### Netgsm
 
@@ -137,13 +151,13 @@ Her fazın çıkışı, bir önceki gereksinimi çalışan yazılımda gösterir
 
 ### Faz 0 — Sözleşme doğrulama
 
-Örnek Arvento cevabı kaydedilir. Konum, sürücü kartı, takograf sayaçları ve varsa ağırlık alanları `VehicleSnapshot` ile eşlenir. Seyir dokümanı istenir. Yol ağı ve adres sağlayıcısı seçilir.
+Örnek Arvento cevabı kaydedilir. Konum, sürücü kartı, takograf sayaçları ve varsa ağırlık alanları `VehicleSnapshot` ile eşlenir. Takograf ve aks ağırlığının açık olup olmadığı bu örnekle anlaşılır. Seyir dokümanı şirketten istenir. Google Cloud projesinde Geocoding, Routes ve Maps JavaScript API açılır.
 
 Çıkış: alan eşleme notu ve bir sağlayıcının kayıtlı örnek cevabı. Seyir dokümanı gelmezse Faz 2 yalnızca Arvento ile biter. Bu, ilk sürümün Arvento firmasında pilotlanmasını engellemez.
 
 ### Faz 1 — Çekirdek
 
-Firma, kullanıcı, rol, araç, sürücü, cep telefonu, dorse tipi, şirket limiti. Elle konum girilebilir. Böylece takip hesabı olmadan kural test edilir.
+Firma, kullanıcı, rol, araç, sürücü, cep telefonu, kasa tipi, kapasite ve kilometre maliyetleri. İlk müşteri için kasa `tenteli`, kapasite araç başına 24 veya 25 tondur. Elle konum girilebilir. Böylece takip hesabı olmadan kural test edilir.
 
 Karşılar: FR-1, FR-2.
 
@@ -165,9 +179,9 @@ Karşılar: FR-4, FR-5, BR-3, BR-4.
 
 Karşılar: FR-7, FR-8, BR-6, BR-7.
 
-### Faz 5 — Dönüş havuzu
+### Faz 5 — Dönüş fırsat havuzu
 
-Fayda, tam eşleştirme, otomatik ve onaylı mod, kararlılık, açıklama kartı, yeniden hesap tetikleri, Netgsm kuyruğu ve kilit.
+Navlunlu fırsat, Google mesafesiyle TL fayda, tam eşleştirme, otomatik ve onaylı mod, kararlılık, açıklama kartı, yeniden hesap tetikleri, Netgsm kuyruğu ve kilit.
 
 Karşılar: FR-6, FR-9, FR-10, BR-5, BR-10.
 
@@ -181,7 +195,7 @@ Haritada son konum, planlanabilir ve yüklü ayrımı, gidiş kuyruğu, havuz, a
 
 - Kural paketi: 4,5 saat, 9 ve 10 saat, haftada iki uzatma, 56 saat, 90 saat, 15+30 mola sırası, 24 saatlik pencere ve 6 kez 24 saat. Her biri için yasal plan kabul, aşan plan ret.
 - Şirket limiti yasal sınırın üstüne yazılamaz.
-- Eşleştirme: iki araç ve iki yükte, açgözlü seçimin toplamı düşürdüğü örnekte çözücü yüksek toplamı seçer.
+- Eşleştirme: iki araç ve iki fırsatta, açgözlü seçimin toplamı düşürdüğü örnekte çözücü yüksek toplamı seçer. Navlunsuz dönüş satırı havuza girmez. 24 tonluk araca 25 tonluk fırsat yazılmaz. Tenteli araca frigolu fırsat yazılmaz.
 - Kararlılık: Netgsm’in kabul ettiği atama, daha yüksek fayda görününce değişmez. Yasal bozulunca değişir.
 - SMS: `atandi` tek kuyruk satırı açar. Kabul kilidi koyar. Aynı olay ikinci satır açmaz. Değişen atamanın bekleyen satırı `dustu` olur. Telefonsuz şoförde `SMS_NO_PHONE` açılır ve kilit konmaz. İptal, kabul edilmiş atamada iptal metni üretir.
 - Dosya: hatalı satır atlanır, kilitli referans güncellenmez, 2.001 satır reddedilir.
@@ -205,7 +219,7 @@ Haritada son konum, planlanabilir ve yüklü ayrımı, gidiş kuyruğu, havuz, a
 | Takograf modülü hesapta kapalı | Sayaç tahmini kalır, otomatik dönüş açılmaz | Faz 0’da anlaşılır. Pilot, gidiş planı ve tahmini uyarıyla başlar. |
 | Seyir sözleşmesi gecikir | İkinci sağlayıcı yazılamaz | Arayüz ve kurallar sağlayıcıdan bağımsız ilerler. |
 | Aks ağırlığı hiç gelmez | Sensör tonajı olmaz | Tonaj yük kaydından gelir. `EMPTY_BUT_HEAVY` kodu, sensör olmayan hesapta susar. |
-| Yol ağı kotası | Eşleşme yavaşlar veya yaklaşık kalır | Mesafe önbelleği. Yaklaşık mesafe otomatik atamayı kilitlemez. |
+| Google kotası veya faturası | Eşleşme yavaşlar veya yaklaşık kalır | Önce eleme, sonra rota matrisi. Mesafe önbelleği. Yaklaşık mesafe otomatik atamayı kilitlemez. |
 | Kural yorumu resmi metinden sapar | Hatalı yasal plan | Üretim kapısı 1. Paket sürümü yükseltmek kod değiştirmez. |
 | Netgsm kesintisi veya onaysız başlık | Şoför rotayı görmez, atama kilitlenmez | Kuyruk durur, `SMS_REJECTED` açılır. Servis dönünce bekleyen satır gider. |
 | SMS’in telefona ulaşmaması | Şoför mesajı okumaz | `SMS_UNDELIVERED` açılır. Kilit açılmaz. Operasyoncu yeniden gönderir. |
