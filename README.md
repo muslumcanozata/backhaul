@@ -14,7 +14,7 @@ Uygulama iskeleti bu dokümanlar gözden geçirildikten sonra kurulur: `apps/api
 
 ## Kilitlenen kapsam
 
-- Çok kiracılı ürün. Her kiracı bir nakliye firmasıdır.
+- Çok kiracılı ürün. Her kiracı bir nakliye firmasıdır. Aynı imaj, firmanın kendi podunda veya birçok firmanın paylaştığı podda çalışır. Veri ve entegrasyon hesapları iki biçimde de ayrıdır.
 - Coğrafya Türkiye içidir. Sürüş ve dinlenme sınırları, Karayolu Taşıma Yönetmeliği madde 35 üzerinden AETR kural paketine bağlanır.
 - Bir araçta aynı anda tek yük ve tek sürücü vardır.
 - Gidiş atamasını operasyoncu yapar. Dönüş fırsatını sistem, navlun ve yol mesafesine göre atar.

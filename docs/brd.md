@@ -1,6 +1,6 @@
 # Backhaul — İş Gereksinimleri Belgesi
 
-Sürüm: 0.3  
+Sürüm: 0.5  
 Tarih: 25 Ekim 2026  
 Durum: Taslak, uygulama öncesi inceleme
 
@@ -21,7 +21,7 @@ Gidiş yükleri firmanın elindedir ve toplu girilir. Dönüş yükü ise havuzd
 
 ## 2. Ürün kapsamı
 
-İlk sürüm, Türkiye içinde komple tır taşıması yapan birden fazla firmaya satılan bir web uygulamasıdır. Her firma kendi araçlarını, sürücülerini, yüklerini ve takip sistemi hesaplarını görür.
+İlk sürüm, Türkiye içinde komple tır taşıması yapan firmalara satılan bir üründür. Tek bir firmanın özel yazılımı değildir. Aynı imaj iki biçimde çalışır: her firmanın kendi podunda, ya da birçok firmanın paylaştığı podda. İki biçimde de firmalar birbirinin aracını, yükünü, şoförünü, planını ve entegrasyon hesabını görmez. Paylaşılan podda firmalar aynı veritabanında, satırdaki firma kimliğiyle ayrılır. Ayrı podda firmanın kendi veritabanı olur. Şema iki kurulumda da aynıdır.
 
 İlk sürümde olanlar:
 
@@ -35,7 +35,7 @@ Gidiş yükleri firmanın elindedir ve toplu girilir. Dönüş yükü ise havuzd
 - AETR sürüş, mola ve dinlenme sınırlarına göre planın elenmesi
 - Sınır aşımı ve aşım riski için uyarı kaydı
 - Atamanın neden seçildiğinin operasyoncuya gösterilmesi
-- Kesinleşen yük ve rotanın şoföre Netgsm SMS’i ile iletilmesi
+- Kesinleşen yük ve rotanın, o firmanın kendi Netgsm hesabıyla şoföre iletilmesi
 
 İlk sürümde olmayanlar:
 
@@ -91,7 +91,7 @@ Bir kullanıcı ilk sürümde tek firmaya bağlıdır. Platform yöneticisi firm
 | BR-6 | Üretilen hiçbir plan, yürürlükteki takograf sınırını aşan bir sürüş programı içeremez. | Sürüme bağlı kural paketi. Firma bu sınırları yalnızca daraltabilir. |
 | BR-7 | Sınır aşıldığında veya aşılmak üzereyken uyarı oluşur. | Uyarı kaydı, seviye ve kapatma. İlk sürümde bildirim uygulama içindedir. |
 | BR-8 | Arvento kullanan firma ile Seyir kullanan firma aynı ekranları kullanır. | Sağlayıcıya özel adaptör, ortak araç anlık görüntüsü. |
-| BR-9 | Bir firma başka firmanın aracını, yükünü, hesabını ve planını göremez. | Her kayıtta firma kimliği ve buna göre yetki kontrolü. |
+| BR-9 | Bir firma başka firmanın aracını, yükünü, hesabını ve planını göremez. | Her kayıtta firma kimliği. Paylaşılan podda sorgu bu kimlik olmadan çalışmaz. Ayrı pod başka firmanın kimliğini kabul etmez. |
 | BR-10 | Şoför, kendine kalan yükün yükleme ve boşaltma yerini ve zamanını telefonunda görür. | Netgsm SMS’i. Ayrı bir şoför uygulaması yoktur. |
 
 ## 6. Fonksiyonel gereksinimler
@@ -166,7 +166,7 @@ Bir kullanıcı ilk sürümde tek firmaya bağlıdır. Platform yöneticisi firm
 - FR-10.5 Telefonu boş olan şoförün ataması durur. Operasyoncuya `SMS_NO_PHONE` açılır. Atama, başarılı bir gönderim kabulü olmadan kilitlenmez.
 - FR-10.6 Aynı atama ve aynı olay ikinci kez kuyruğa yazılmaz. Atama, SMS kabul edilmeden değişirse bekleyen mesaj gönderilmeden düşer.
 - FR-10.7 Operasyoncu, iletilemeyen mesajı karttan yeniden gönderir. Yeniden gönderim kilidi açmaz.
-- FR-10.8 Gönderici başlığı, platformun Netgsm hesabında onaylı başlıktır. Metin firma kısa adıyla başlar. Şifre ve başlık ekrana geri açılmaz.
+- FR-10.8 Her firmanın kendi Netgsm kullanıcı kodu, API şifresi ve onaylı başlığı vardır. Paylaşılan podda bu üçü o firmanın şifreli kaydındadır. Ayrı podda, yalnızca o poda bağlı firmanın ortam değişkenidir: `NETGSM_USERCODE`, `NETGSM_PASSWORD`, `NETGSM_MSGHEADER`. Paylaşılan pod bu üç değişken doluysa açılmaz. Böylece bir firmanın başlığı diğer firmaların SMS’ine yazılmaz. Eksik hesapta yalnızca o firmanın SMS’i çıkmaz. Metin firma kısa adıyla başlar. Değerler ekrana geri açılmaz.
 
 Uyarı kodları ve eşikler [iş kurallarında](is-kurallari.md) listelenir.
 
@@ -234,7 +234,7 @@ Bunlar belgeyi bekletmez. Adaptörün canlıya çıkmasını bekletir.
 | A-3 | Dönüş navlunu havuza girerken biliniyor mu? | Kapandı. Dönüş kaydı fırsattır, navlunuyla girer. Uygun tır, dönüşte bu navlunla otomatik eşleşir. |
 | A-4 | Dorse tipleri nelerdir? | Kapandı. Katalog: tenteli, frigolu, sal, lowbed, tanker. İlk müşterinin tamamı tenteli ve 24 veya 25 ton. |
 | A-5 | Adres ve yol mesafesi hangi hizmetten gelir? | Kapandı. Google Maps. Geocoding, Routes API ve harita için Maps JavaScript API. |
-| A-6 | Platform Netgsm hesabının onaylı gönderici başlığı nedir? | Açık. Başlık onaylanmadan canlı SMS çıkmaz. Kuyruk ve kilit kuralları başlıksız da test edilir. |
+| A-6 | Netgsm başlığı nerede durur? | Kapandı. Her firmanın kendi hesabı vardır. Ayrı podda ortam değişkeni, paylaşılan podda şifreli firma kaydıdır. Repoda değer yoktur. |
 
 ## 12. Kaynaklar
 

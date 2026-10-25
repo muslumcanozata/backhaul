@@ -10,13 +10,14 @@ Bu plan [iş gereksinimlerini](brd.md) ve [iş kurallarını](is-kurallari.md) i
 | D-2 | Hizmet FastAPI ile yazılır. Sözleşme OpenAPI’dir. Web tipleri bu şemadan üretilir. |
 | D-3 | Arayüz Vite, React ve TypeScript ile yazılır. Operasyon ekranı harita ve kuyruk üzerine kuruludur. |
 | D-4 | Veri PostgreSQL’dedir. Konumlar PostGIS tipindedir. |
-| D-5 | Firmalar aynı veritabanını paylaşır. Her operasyon tablosunda `tenant_id` vardır. Sorgu bu alan olmadan yazılmaz. |
+| D-5 | Şema her kurulumda aynıdır ve her operasyon satırında `tenant_id` vardır. Paylaşılan podda firmalar aynı veritabanındadır. Ayrı podda firmanın kendi veritabanı olur. Sorgu firma kimliği olmadan yazılmaz. |
 | D-6 | Takograf sayıları `TR-AETR-2026` kaydındadır. Plan, hesap anındaki paket kimliğini kopyalar. |
 | D-7 | Arvento ve Seyir, ortak `VehicleSnapshot` üreten adaptörlerdir. Planlama kodu sağlayıcı adı bilmez. |
 | D-8 | Adres Google Geocoding API, yol mesafesi ve süresi Google Routes API rota matrisi, operasyon haritası Maps JavaScript API ile alınır. Plan süresi trafiksiz sürüş süresidir. |
 | D-9 | Periyodik çekme ve eşleştirme, API sürecinden ayrı bir işleyicide çalışır. Kuyruk Redis’tedir. |
 | D-10 | Dönüş eşleşmesi tam atama problemidir. İlk sürümde OR-Tools’un atama çözücüsü kullanılır. |
-| D-11 | Rota SMS’i platformun tek Netgsm hesabından, REST v2 ile gider. Atama, Netgsm iş kimliği dönünce kilitlenir. |
+| D-11 | Her firmanın kendi Netgsm hesabı vardır. SMS o hesabın REST v2 uç noktasından gider. Atama, o firmanın hesabı iş kimliği dönünce kilitlenir. |
+| D-12 | Aynı imaj `DEPLOYMENT_MODE=shared` veya `dedicated` ile açılır. `dedicated` pod tek `TENANT_ID` taşır. `shared` pod firma kimliğini oturumdan alır. |
 
 ## 2. Depo
 
@@ -55,7 +56,25 @@ flowchart LR
   worker --> db
 ```
 
-Web, sağlayıcıya ve veritabanına doğrudan gitmez. İşleyici, çektiği ham cevabı ortak anlık görüntüye çevirir ve müsaitlik ile takograf sayaçlarını günceller. Eşleştirme ve rota SMS’i de işleyicidedir. API, sonucu okur ve operasyoncunun onayını, iptalini, dosya yükünü ve yeniden gönderimini kabul eder.
+Web, sağlayıcıya ve veritabanına doğrudan gitmez. İşleyici her işi tek bir `tenant_id` ile çalıştırır. O firmanın Arvento, Seyir veya Netgsm sırrını yükler, iş bitince bırakır. Bir çevrimde iki firmanın hesabı aynı istekte kullanılmaz. Eşleştirme ve rota SMS’i de işleyicidedir. API, sonucu okur ve operasyoncunun onayını, iptalini, dosya yükünü ve yeniden gönderimini kabul eder.
+
+### Pod biçimi
+
+İki biçim de aynı imajdır. Firma verisinin şekli değişmez. Bir firmayı paylaşılan poddan kendi poduna taşımak, satırları ve şifreli sırları yeni veritabanına kopyalamaktır. Kod dalı açılmaz.
+
+| | Paylaşılan pod | Ayrı pod |
+| --- | --- | --- |
+| `DEPLOYMENT_MODE` | `shared` | `dedicated` |
+| Firma sayısı | Birden fazla | `TENANT_ID` ile tek firma |
+| Veritabanı | Ortak | O firmanın kendi veritabanı |
+| Arvento, Seyir, Netgsm sırları | Firmanın şifreli kaydı | O podun ortam değişkeni |
+| Başka firmanın kimliği | Sorgu boş döner | İstek reddedilir |
+
+`shared` pod, `NETGSM_USERCODE`, `NETGSM_PASSWORD`, `NETGSM_MSGHEADER` veya Arvento PIN’leri doluysa açılmaz. Bu değişkenler tek firmanın sırrıdır. Paylaşılan süreçte durursa bütün firmalara aynı başlık gider. `dedicated` pod, `TENANT_ID` boşsa açılmaz.
+
+Google anahtarları kurulumun ortamındadır. Harita ve mesafe ürün altyapısıdır, firmanın araç takip hesabı değildir. Mesafe önbelleği yol koordinatınadır. Araç anlık görüntüsü, SMS kuyruğu ve entegrasyon sırrı firma kimliğiyle saklanır.
+
+Sırları şifreleyen anahtar her podda `SECRETS_KEY` ortam değişkenidir. Bu anahtar bir firmanın Netgsm şifresi değildir. Paylaşılan podda firma sırlarını çözer. Ayrı podda, ortamdan okunan sır veritabanına yazılacaksa aynı anahtar kullanılır.
 
 ### Hizmet sınırları
 
@@ -131,17 +150,19 @@ Adaptör iki çağrı yapar.
 | SMS gönder | `POST https://api.netgsm.com.tr/sms/rest/v2/send` |
 | İletim raporu | `POST https://api.netgsm.com.tr/sms/rest/v2/report` |
 
-Gönderim gövdesi `msgheader`, `encoding: TR`, `iysfilter: 0`, `appname: backhaul` ve `messages` listesidir. Her eleman `msg` ve `no` taşır. Numara `5XXXXXXXXX` biçimindedir. Kimlik, kullanıcı kodu ve API şifresinin Basic kodlanmasıdır. İkisi de ortam sırrıdır ve veritabanına düz yazılmaz.
+Gönderim gövdesi `msgheader`, `encoding: TR`, `iysfilter: 0`, `appname: backhaul` ve `messages` listesidir. Her eleman `msg` ve `no` taşır. Numara `5XXXXXXXXX` biçimindedir. Kimlik, o firmanın kullanıcı kodu ve API şifresinin Basic kodlanmasıdır.
+
+Sır çözümü firma kimliğine göredir. `dedicated` podda `TENANT_ID` firmasının `NETGSM_USERCODE`, `NETGSM_PASSWORD` ve `NETGSM_MSGHEADER` değişkenleri okunur. `shared` podda aynı üç alan o firmanın şifreli kaydından çözülür. Üçlüden biri yoksa yalnızca o firmanın satırı gönderilmez. Test, sahte adaptörle iki firmanın sırlarını karıştırmadan yürür. Adlar `.env.example` dosyasındadır. Örnek dosyada değer yoktur.
 
 Kuyruk tablosu `sms_outbox`: firma, atama, olay kodu, şoför, numara, metin, durum, deneme sayısı, Netgsm iş kimliği, parça sayısı, son hata. İşleyici `bekliyor` satırları gönderir, `kabul` satırların raporunu birkaç dakikada bir okur. Rapor satırı `iletildi` veya `iletilemedi` yapar. Bu okuma atama kilidini değiştirmez.
 
-Netgsm cevabı testte sahte adaptörle verilir. Canlı hesap, başlık onayı olmadan testin ön koşulu değildir.
+Netgsm cevabı testte sahte adaptörle verilir. Canlı gönderim, SMS’in firmasında üç sır da varken açılır.
 
 ## 4. Güvenlik ve veri
 
 - Oturum, firma kimliği taşıyan kısa ömürlü erişim belirteciyle açılır.
 - Platform yöneticisinin belirteci bir firmanın operasyon verisini okumaz. Firma desteği için ayrıca verilen ve denetlenen bir okuma yetkisi sonraki sürüme kalır.
-- Sağlayıcı sırları ve Netgsm şifresi sütun veya ortam sırrı olarak şifreli durur. Liste cevabında yalnızca sağlayıcı adı ve “kayıtlı” bilgisi döner. SMS metni şoförün numarasıyla birlikte denetim kaydındadır. Bu kayıt operasyoncunun ekranında görünür, dışa aktarımda numara maskelenir.
+- Arvento, Seyir ve Netgsm sırları firma kaydında `SECRETS_KEY` ile şifreli durur. Ayrı podda kaynak, o firmanın ortam değişkenidir. Liste cevabında sır dönmez. SMS metni şoförün numarasıyla birlikte denetim kaydındadır. Bu kayıt o firmanın operasyoncusunun ekranında görünür, dışa aktarımda numara maskelenir.
 - Denetim kaydı güncellenmez ve silinmez.
 - Saatler veritabanında UTC, iş kurallarında `Europe/Istanbul` takvimine çevrilerek uygulanır. Hafta pazartesi başlar.
 
@@ -199,7 +220,7 @@ Haritada son konum, planlanabilir ve yüklü ayrımı, gidiş kuyruğu, havuz, a
 - Kararlılık: Netgsm’in kabul ettiği atama, daha yüksek fayda görününce değişmez. Yasal bozulunca değişir.
 - SMS: `atandi` tek kuyruk satırı açar. Kabul kilidi koyar. Aynı olay ikinci satır açmaz. Değişen atamanın bekleyen satırı `dustu` olur. Telefonsuz şoförde `SMS_NO_PHONE` açılır ve kilit konmaz. İptal, kabul edilmiş atamada iptal metni üretir.
 - Dosya: hatalı satır atlanır, kilitli referans güncellenmez, 2.001 satır reddedilir.
-- Kiracı: bir firmanın belirteciyle diğer firmanın yükü, aracı ve sağlayıcı sırları okunamaz.
+- Kiracı: paylaşılan podda bir firmanın belirteciyle diğer firmanın yükü, aracı ve sırları okunamaz. Ayrı pod, `TENANT_ID` dışında bir firma kimliğini reddeder. `shared` kip, Netgsm veya Arvento ortam değişkeni doluyken açılmaz. Bir firmanın SMS işi diğer firmanın başlığını kullanmaz.
 - Arvento adaptörü, Faz 0’da kaydedilen örnek cevapla çevrimdışı çalışır. Canlı servis testin ön koşulu değildir.
 
 ## 7. Üretim kapıları
@@ -209,8 +230,8 @@ Haritada son konum, planlanabilir ve yüklü ayrımı, gidiş kuyruğu, havuz, a
 3. Kiracı izolasyon testleri geçti.
 4. Otomatik atama, yaklaşık mesafeyle kesinleşmiyor.
 5. Tahmini takografla otomatik atama, firma bayrağı kapalıyken kapalı.
-6. Sağlayıcı sırları ve Netgsm şifresi yedekte şifreli.
-7. Canlı SMS, Netgsm’de onaylı `msgheader` ile çıkar. Başlık onayı yokken üretim gönderimi kapalıdır.
+6. Firma sırları yedekte şifreli durur. `SECRETS_KEY` yedekle aynı kasada düz SMS şifresi olarak bulunmaz.
+7. Canlı SMS, yalnızca sırları tam olan firmanın hesabından çıkar. Eksik firma diğer firmaların gönderimini kapatmaz.
 
 ## 8. Riskler
 
@@ -221,7 +242,7 @@ Haritada son konum, planlanabilir ve yüklü ayrımı, gidiş kuyruğu, havuz, a
 | Aks ağırlığı hiç gelmez | Sensör tonajı olmaz | Tonaj yük kaydından gelir. `EMPTY_BUT_HEAVY` kodu, sensör olmayan hesapta susar. |
 | Google kotası veya faturası | Eşleşme yavaşlar veya yaklaşık kalır | Önce eleme, sonra rota matrisi. Mesafe önbelleği. Yaklaşık mesafe otomatik atamayı kilitlemez. |
 | Kural yorumu resmi metinden sapar | Hatalı yasal plan | Üretim kapısı 1. Paket sürümü yükseltmek kod değiştirmez. |
-| Netgsm kesintisi veya onaysız başlık | Şoför rotayı görmez, atama kilitlenmez | Kuyruk durur, `SMS_REJECTED` açılır. Servis dönünce bekleyen satır gider. |
+| Netgsm kesintisi veya onaysız başlık | O firmanın şoförü rotayı görmez, ataması kilitlenmez | Yalnızca o firmanın kuyruğu durur. `SMS_REJECTED` açılır. Servis dönünce o firmanın bekleyen satırı gider. |
 | SMS’in telefona ulaşmaması | Şoför mesajı okumaz | `SMS_UNDELIVERED` açılır. Kilit açılmaz. Operasyoncu yeniden gönderir. |
 
 ## 9. Uygulamaya geçiş

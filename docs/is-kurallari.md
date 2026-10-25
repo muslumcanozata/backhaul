@@ -263,4 +263,4 @@ Metin Türkçe karakter taşır. `encoding` değeri `TR` olur. Şablonlar:
 
 Saatler `GG.AA SS:dd` ve Türkiye saatidir. Açık adres ve koordinat mesaja girmez. Bir mesaj birden fazla SMS parçasına bölünebilir. Parça sayısı gönderim kaydında durur.
 
-Gönderen, platformun tek Netgsm hesabıdır. `msgheader` o hesapta onaylı başlıktır. Firma kendi başlığını ilk sürümde getirmez. Şoför firmayı metnin ilk kelimesinden ayırır. `iysfilter` kapalıdır. Bu kuyruk pazarlama listesi değildir. Her firmanın kendi başlığını kullanması sonraki sürüme kalır.
+Gönderen, SMS’in ait olduğu firmanın kendi Netgsm hesabıdır. Başlık o firmanın onaylı `msgheader` değeridir. Paylaşılan podda kullanıcı kodu, şifre ve başlık firmanın şifreli kaydından okunur. Ayrı podda aynı üç değer, o podun `NETGSM_USERCODE`, `NETGSM_PASSWORD` ve `NETGSM_MSGHEADER` değişkenleridir ve yalnızca `TENANT_ID` ile eşleşen firma için geçerlidir. Firmanın üçlüsünden biri boşsa o firmanın SMS’i gitmez. Diğer firmaların kuyruğu durmaz. Şoför firmayı hem başlıktan hem metnin ilk kelimesinden ayırır. `iysfilter` kapalıdır. Bu kuyruk pazarlama listesi değildir.
