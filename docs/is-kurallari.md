@@ -105,7 +105,7 @@ Günlük 10 saatlik uzatma, ancak o hafta ikiden az uzatma kullanıldıysa ve ş
 
 `ölçülmüş`: sağlayıcının takograf raporundaki sürüş, mola ve dinlenme sayaçları. Plan bunu kullanır.
 
-`tahmini`: rapor yokken hız 5 km/sa üzerinde süren hareket sürüş sayılır. Hız bu eşiğin altında ve bu durum mola süresi boyunca kesintisiz sürerse mola sayılır. Kontak kapalı uzun duruş, dinlenme adayıdır. Tahmini sayaçla gidiş önerisi üretilebilir. Otomatik dönüş ataması, firma `tahmini_ile_otomatik_atama` bayrağını açmadıkça yapılmaz. Bayrağın başlangıç değeri kapalıdır.
+`tahmini`: Arvento `LastPacket` hızı 5 km/sa üzerinde süren hareket sürüş sayılır. Bu pakette kontak yoktur. `CANBUSTachographLastStatus` örneğinde kontak paketi eşlenirse kapalı kontak uzun duruş dinlenme adayı olur. Eşlenene kadar dinlenme adayı, hızın mola süresi boyunca eşiğin altında kalmasıdır. Tahmini sayaçla gidiş önerisi üretilebilir. Otomatik dönüş ataması, firma `tahmini_ile_otomatik_atama` bayrağını açmadıkça yapılmaz. Bayrağın başlangıç değeri kapalıdır.
 
 İki kaynak da yoksa çift `TACHO_UNKNOWN` ile elenir.
 
@@ -199,7 +199,7 @@ Hesap şu olaylarda çalışır: havuza fırsat girmesi, fırsatın iptali, arac
 
 Zorunlu kolonlar: `referans_no`, `yukleme_il`, `yukleme_ilce`, `bosaltma_il`, `bosaltma_ilce`, `tonaj`, `dorse_tipi`, `hazir_zamani`, `teslim_baslangic`, `teslim_bitis`.
 
-Opsiyonel kolonlar: `musteri`, `yukleme_adres`, `bosaltma_adres`, `navlun_try`, `yon`.
+Opsiyonel kolonlar: `musteri`, `araci_firma`, `yukleme_adres`, `bosaltma_adres`, `navlun_try`, `yon`. `araci_firma` dönüş fırsatında yükü getiren aracı nakliyeciyi yazar.
 
 Satır reddi:
 

@@ -9,8 +9,18 @@ Türkiye içi karayolu taşımacılığı yapan firmalar için çok kiracılı t
 | [İş gereksinimleri](docs/brd.md) | Amaç, kapsam, roller, gereksinimler, başarı ölçütleri |
 | [İş kuralları](docs/is-kurallari.md) | Müsaitlik, tonaj, takograf kural paketi, uyarılar, fayda hesabı |
 | [Mimari ve teslimat](docs/mimari-ve-teslimat.md) | Monorepo, entegrasyonlar, fazlar, üretim kapıları |
+| [MVP](docs/mvp.md) | İlk yayının sınırı, dilimleri ve kabul ölçütleri |
+| [Arayüz](docs/arayuz.md) | Sefer masası, sicil kabuğu, sayfalar ve rol sınırları |
+| [İş akışları](docs/workflow.md) | UI senaryoları, Mermaid UML diyagramları |
 
-Uygulama iskeleti bu dokümanlar gözden geçirildikten sonra kurulur: `apps/api` (FastAPI) ve `apps/web` (Vite, React, TypeScript).
+Uygulama `apps/api` (FastAPI) ve `apps/web` (Vite, React, TypeScript) altındadır. İlk dilim firma, kullanıcı, araç ve pod izolasyonudur.
+
+```bash
+cd apps/api && python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
+cp .env.example .env   # JWT_SECRET ve SECRETS_KEY doldurulur
+make test
+make api
+```
 
 ## Kilitlenen kapsam
 

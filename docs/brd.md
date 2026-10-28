@@ -1,6 +1,6 @@
 # Backhaul — İş Gereksinimleri Belgesi
 
-Sürüm: 0.5  
+Sürüm: 0.6  
 Tarih: 25 Ekim 2026  
 Durum: Taslak, uygulama öncesi inceleme
 
@@ -57,7 +57,7 @@ Gidiş yükleri firmanın elindedir ve toplu girilir. Dönüş yükü ise havuzd
 | Operasyoncu | Gidiş yükünü içe aktarır, gidiş aracı atar, dönüş havuzunu izler, uyarıyı kapatır, hatalı tonajı düzeltir, iletilemeyen rota SMS’ini yeniden gönderir. |
 | İzleyici | Plan, harita ve uyarıyı görür. Kayıt değiştirmez. |
 
-Bir kullanıcı ilk sürümde tek firmaya bağlıdır. Platform yöneticisi firma kullanıcısı değildir.
+Bir kullanıcı ilk sürümde tek firmaya bağlıdır. Platform yöneticisi firma kullanıcısı değildir. Ekranların dökümü ve rolün sayfada ne yapacağı [arayüz planındadır](arayuz.md).
 
 ## 4. İş akışı
 
@@ -187,7 +187,7 @@ Entegrasyon parolası ve PIN ekrana geri açılmaz. Yazılı halde şifreli duru
 
 Ortak anlık görüntü alanları: sağlayıcı, cihaz kimliği, plaka, enlem, boylam, hız, yön, kontak, ölçüm zamanı. Varsa kilometre, brüt ağırlık, sürücü kartı ve takograf sayaçları.
 
-Arvento ilk sürümün konum kaynağı olarak `GetVehicleStatus` ailesini kullanır. Takograf sayaçları, hesapta modül açıksa `TachographActiveFleetReport` ve `CANBUSTachographLastStatus` ile denenir. Sürücü eşlemesi `DriverInformation` ve cihaz–sürücü eşleme metotlarıyla güncellenir. Hangi hesapta ağırlık alanının geldiği, uygulama başlamadan örnek cevapla doğrulanır. Doğrulanamayan alan boş kalır.
+Arvento bağlantısı SOAP 1.1’dir. Adres `https://ws.arvento.com/v1/report.asmx`, sözleşme `report.asmx?WSDL`, ad alanı `http://www.arvento.com/`. Konum `GetVehicleStatusV4` ile alınır. Bu pakette enlem, boylam, hız, yön, plaka, cihaz kimliği ve sinyal zamanı vardır. Kontak yoktur. Takograf ve kontak `CANBUSTachographLastStatus` ile `TachographActiveFleetReport` içindedir. İkisinin cevap şeması `DataSet` olduğu için kolon adları örnek cevapla eşlenir. `CanBusEmptyInfo` tonaj sözleşmesi taşımaz. Ağırlık kolonu örnekte yoksa tonaj sefer kaydından gelir.
 
 Seyir’in kamuya açık bir servis sözleşmesi bulunamadı. İlk sürüm Seyir adaptörünü aynı anlık görüntüye bağlar. Uç adres, kimlik doğrulama ve alan adları firmanın Seyir sözleşmesinden alınır. Sözleşme gelmeden Seyir adaptörü canlı veri çekmez; ekran ve kurallar Arvento veya elle girilen konumla çalışır.
 
@@ -229,7 +229,7 @@ Bunlar belgeyi bekletmez. Adaptörün canlıya çıkmasını bekletir.
 
 | No | Soru | Durum |
 | --- | --- | --- |
-| A-1 | Pilot Arvento hesabında takograf modülü ve aks ağırlığı açık mı? | Ertelendi. Hesap örneği gelene kadar takograf `tahmini`, tonaj yük kaydındandır. Sensör alanı örnek cevapta yoksa boş kalır. |
+| A-1 | Pilot Arvento hesabında takograf ve CAN ağırlığı dolu mu? | Ertelendi. Metotlar WSDL’de var, kolonlar `DataSet` içinde. Örnek cevap gelene kadar takograf `tahmini`, tonaj sefer kaydındandır. |
 | A-2 | Seyir servisinin adresi, kimlik yöntemi ve örnek cevabı nedir? | Ertelendi. Şirketten talep edilecek. Sözleşme gelmeden Seyir canlı veri çekmez. |
 | A-3 | Dönüş navlunu havuza girerken biliniyor mu? | Kapandı. Dönüş kaydı fırsattır, navlunuyla girer. Uygun tır, dönüşte bu navlunla otomatik eşleşir. |
 | A-4 | Dorse tipleri nelerdir? | Kapandı. Katalog: tenteli, frigolu, sal, lowbed, tanker. İlk müşterinin tamamı tenteli ve 24 veya 25 ton. |
@@ -241,6 +241,6 @@ Bunlar belgeyi bekletmez. Adaptörün canlıya çıkmasını bekletir.
 - Karayolu Taşıma Yönetmeliği madde 35. Şoförlerin çalışma ve dinlenme süreleri AETR’ye bağlıdır. 15 Mayıs 2025 tarihli ve 32901 sayılı değişiklik, kart ve takograf manipülasyonu için yaptırım ekler. Resmi metin: [mevzuat.gov.tr](https://www.mevzuat.gov.tr/MevzuatMetin/yonetmelik/7.5.24299.pdf).
 - AETR sürüş, mola ve dinlenme uygulaması için 2026 özeti: günlük 9 saat (haftada iki kez 10), haftalık 56 saat, ardışık iki hafta 90 saat, 4,5 saat sonra 45 dakika mola. [SGK sirküleri 2026-041](https://www.denet.com.tr/vergi/dosyalar/sirkuler/SGKSIRK2026-041.pdf).
 - 20 Temmuz 1999 tarihli ve 4411 sayılı kanunun ekindeki AETR nüshası daha eski sınırlar içerir. Kural paketi o nüshadaki on beş günlük hesaba değil, yukarıdaki güncel uygulamaya göre kurulur. Üretim kapısında konsolide metinle teyit edilir.
-- Arvento rapor servisi: [ws.arvento.com/v1/report.asmx](https://ws.arvento.com/v1/report.asmx). Konum için `GetVehicleStatus` ailesi, takograf için `TachographActiveFleetReport` ve `CANBUSTachographLastStatus` kullanılır.
+- Arvento rapor servisi, SOAP 1.1: [ws.arvento.com/v1/report.asmx](https://ws.arvento.com/v1/report.asmx). WSDL: [report.asmx?WSDL](https://ws.arvento.com/v1/report.asmx?WSDL). Konum `GetVehicleStatusV4`, takograf `TachographActiveFleetReport` ve `CANBUSTachographLastStatus`.
 - Netgsm SMS REST v2: [netgsm.com.tr/dokuman](https://www.netgsm.com.tr/dokuman). Gönderim `POST /sms/rest/v2/send`, iletim raporu `POST /sms/rest/v2/report`.
 - Google Geocoding API, Routes API rota matrisi ve Maps JavaScript API. Planlama süresi trafiksiz sürüş süresidir.

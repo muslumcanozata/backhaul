@@ -8,11 +8,11 @@ Bu plan [iş gereksinimlerini](brd.md) ve [iş kurallarını](is-kurallari.md) i
 | --- | --- |
 | D-1 | Tek depo. `apps/api` Python hizmeti, `apps/web` web arayüzü, `docs` bu belgeler. |
 | D-2 | Hizmet FastAPI ile yazılır. Sözleşme OpenAPI’dir. Web tipleri bu şemadan üretilir. |
-| D-3 | Arayüz Vite, React ve TypeScript ile yazılır. Operasyon ekranı harita ve kuyruk üzerine kuruludur. |
+| D-3 | Arayüz Vite, React, TypeScript ve MUI ile yazılır. Görsel kabuk ücretsiz Minimal’dır. Menü ve yetki [arayüz planındadır](arayuz.md). |
 | D-4 | Veri PostgreSQL’dedir. Konumlar PostGIS tipindedir. |
 | D-5 | Şema her kurulumda aynıdır ve her operasyon satırında `tenant_id` vardır. Paylaşılan podda firmalar aynı veritabanındadır. Ayrı podda firmanın kendi veritabanı olur. Sorgu firma kimliği olmadan yazılmaz. |
 | D-6 | Takograf sayıları `TR-AETR-2026` kaydındadır. Plan, hesap anındaki paket kimliğini kopyalar. |
-| D-7 | Arvento ve Seyir, ortak `VehicleSnapshot` üreten adaptörlerdir. Planlama kodu sağlayıcı adı bilmez. |
+| D-7 | Arvento SOAP 1.1 document/literal ile, Seyir kendi sözleşmesiyle bağlanır. İkisi de ortak `VehicleSnapshot` üretir. Planlama kodu sağlayıcı adı bilmez. |
 | D-8 | Adres Google Geocoding API, yol mesafesi ve süresi Google Routes API rota matrisi, operasyon haritası Maps JavaScript API ile alınır. Plan süresi trafiksiz sürüş süresidir. |
 | D-9 | Periyodik çekme ve eşleştirme, API sürecinden ayrı bir işleyicide çalışır. Kuyruk Redis’tedir. |
 | D-10 | Dönüş eşleşmesi tam atama problemidir. İlk sürümde OR-Tools’un atama çözücüsü kullanılır. |
@@ -112,20 +112,39 @@ VehicleSnapshot
     reduced_weekly_rest_debt, debt_due_at
 ```
 
-Arvento eşlemesi:
+### Arvento SOAP
 
-| İhtiyaç | Metot |
+Sözleşme 25 Ekim 2026 tarihinde `https://ws.arvento.com/v1/report.asmx?WSDL` üzerinden okundu. Servis adı `ArventoReportWebService`, hedef ad alanı `http://www.arvento.com/`, SOAP adresi `https://ws.arvento.com/v1/report.asmx`. İstemci SOAP 1.1, `document/literal` kullanır. `SOAPAction` değeri `http://www.arvento.com/` artı metot adıdır. Aynı uçta SOAP 1.2, HTTP GET ve HTTP POST de vardır. Ürün onları çağırmaz.
+
+Her istekte `Username`, `PIN1` ve `PIN2` gider. Bunlar firmanın şifreli kaydındadır. Ayrı podda ortam değişkenidir. `Language` kullanılan metotlarda `TR` olur.
+
+MVP’nin konum çağrısı `GetVehicleStatusV4` olur. Tek çağrı, hesaptaki bütün araçların son paketini `ArrayOfLastPacketV4` olarak döner. `LastPacket` alanları şunlardır:
+
+| SOAP alanı | Anlık görüntü |
 | --- | --- |
-| Son konum | `GetVehicleStatus` veya hesapta çalışan sürümü `GetVehicleStatusV3` |
-| Takograf sayaçları | `TachographActiveFleetReport`, `CANBUSTachographLastStatus` |
-| Sürücü | `DriverInformation`, `GetDriverFromNode` |
-| Kartsız hareket | `VehicleMovedWithoutDriverIdentificationSummaryReport` |
+| `strNode` | Cihaz kimliği |
+| `strLicensePlate` | Plaka. Eşleşme önce plakayla, yoksa cihaz kimliğiyle yapılır |
+| `dLatitude`, `dLongitude` | Konum |
+| `dSpeed` | Hız, km/sa |
+| `nCourse` | Yön |
+| `dtGMTDateTime` | Sinyal zamanı, UTC. Tazelik buna bakar |
+| `dtLocalDateTime` | Arvento yerel saati. İş kuralı saati bu alandan okunmaz |
+| `dOdometer` | Kilometre sayacı |
+| `strAddress`, `strRegion` | Adres metni. Planlama koordinatı bunlardan üretilmez |
+| `strDriver` | Sürücü adı, varsa |
+| `strIdentityNumber` | Sürücü dış kimliği. Takograf kartı olduğu örnek cevapla doğrulanır |
 
-Çekme aralığı konum için 60 saniye, takograf için 5 dakikadır. İkisi de firma hesabının hız limitine göre büyütülebilir. Kimlik bilgisi `Username`, `PIN1`, `PIN2` olarak şifreli saklanır.
+`GetVehicleStatusV4`, `LastPacket` üzerine `dCANOdometerValue` ve `dtCANOdometerDate` ekler. CAN kilometresi doluysa o, değilse `dOdometer` saklanır. `GetVehicleStatusV3` aynı `LastPacket` listesini döner ve CAN kilometresini taşımaz. V4 hata verirse adaptör V3’e düşer.
 
-Seyir eşlemesi, A-2 kapanınca aynı tabloya bir sütun olarak eklenir. O zamana kadar Seyir hesabı “bekliyor” durumunda durur ve işleyici o hesap için istek atmaz.
+Bu konum paketinde kontak alanı yoktur. Kontak, CAN ve takografın son paketleri `CANBUSTachographLastStatus` içindedir. Filo takograf özeti `TachographActiveFleetReport` içindedir. İkisinin cevabı da WSDL’de `DataSet`tir. Kolon adları sözleşmede yazmaz. Örnek cevap kaydedilmeden sayaç veya kontak alanı uydurulmaz. Örnek boşsa veya metot yetki hatası verirse sayaç `tahmini` kalır ve hız `dSpeed` üzerinden hesaplanır.
 
-Ağırlık alanı bu tabloda bilinçli olarak yoktur. Arvento’nun genel rapor listesinde ayrı bir aks ağırlığı metodu görünmüyor. Pilot hesapta takograf ve aks ağırlığı açık mı bilinmiyor. Örnek cevap gelene kadar takograf `tahmini` kalır, tonaj yük kaydından gelir. Örnek cevapta ağırlık alanı varsa anlık görüntüye eklenir.
+`CanBusEmptyInfo` bir tarih aralığında CAN verisi listeler. Adı boş araç anlamına gelmez. WSDL’de tonaj kolonu yoktur. Örnek satırda ağırlık kolonu görünürse eşlenir. Görünmezse tonaj sefer kaydında kalır.
+
+Sürücü eşlemesi `GetDriverFromNode` ile cihazdan okunur. Plaka ve cihaz listesi `GetLicensePlateNodeMappings` ile alınır. `DriverInformation` tek cihaz ve GMT tarih ister. Periyodik filo çekiminde kullanılmaz.
+
+Çekme aralığı `GetVehicleStatusV4` için 60 saniye, iki takograf metodu için 5 dakikadır. Aralık firma hesabına göre büyütülebilir. İstemci WSDL’in tamamından istemci üretmez. Yalnızca bu metotları çağırır. Ham `DataSet` sınırlı süre saklanır. Test, kaydedilmiş SOAP cevabıyla çevrimdışı çalışır.
+
+Seyir eşlemesi, A-2 kapanınca aynı anlık görüntüye bir adaptör olarak eklenir. O zamana kadar Seyir hesabı “bekliyor” durumunda durur ve işleyici o hesap için istek atmaz.
 
 ### Google Maps
 
@@ -168,7 +187,7 @@ Netgsm cevabı testte sahte adaptörle verilir. Canlı gönderim, SMS’in firma
 
 ## 5. Fazlar
 
-Her fazın çıkışı, bir önceki gereksinimi çalışan yazılımda gösterir. Süre, tek ekip için yaklaşık sprinttir. Takvim, A-1 ve A-2 cevaplarına göre kayar.
+İlk yayın [MVP planındaki](mvp.md) dört dilimdir. Aşağıdaki fazlar o dilimlerin ayrıntısıdır. Seyir canlı bağlantısı ve aks ağırlığı MVP’nin dışındadır. Her fazın çıkışı, bir önceki gereksinimi çalışan yazılımda gösterir. Süre, tek ekip için yaklaşık sprinttir. Takvim, A-1 ve A-2 cevaplarına göre kayar.
 
 ### Faz 0 — Sözleşme doğrulama
 
@@ -208,7 +227,7 @@ Karşılar: FR-6, FR-9, FR-10, BR-5, BR-10.
 
 ### Faz 6 — Operasyon ekranı
 
-Haritada son konum, planlanabilir ve yüklü ayrımı, gidiş kuyruğu, havuz, atama kartı, SMS durumu, yeniden gönder ve uyarı kutusu. Masaüstü genişliği esas alınır. Dar ekran, kuyruğu ve kartı kullanılabilir tutar.
+Sefer masası Minimal kabuğundadır: gidiş kuyruğu, harita, dönüş havuzu ve sağdan açılan dosya paneli. Rolün göremeyeceği sayfa rayda durmaz. Ayrıntı [arayüz planındadır](arayuz.md). Masaüstü genişliği esas alınır. Dar ekranda menü çekmeceye iner.
 
 İlk sürüm Faz 5’te işlevsel, Faz 6’da günlük kullanıma hazır olur.
 

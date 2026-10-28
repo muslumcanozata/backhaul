@@ -16,3 +16,5 @@ dist/
 build/
 .turbo/
 *.log
+*.db
+apps/api/.venv/
