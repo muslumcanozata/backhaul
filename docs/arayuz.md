@@ -90,13 +90,13 @@ Aynı yazma sınırı gidişle aynıdır. Onay modu kapalıyken sistem atar. Ona
 - Excel içe/dışa aktarma, tek satır ekleme, Hesapla.
 - Fırsat dosyası: fayda kırılımı, takograf, elenen adaylar, SMS.
 
-### Uyarılar
+### Bildirimler (üst çubuk)
 
-Üç firma rolü okur. Operasyoncu ve firma yöneticisi görüldü işaretler. Kapanış, koşul düzelince kendiliğinden olur.
+Üç firma rolü okur. Menüde ayrı Uyarılar sayfası yoktur. Üst çubuktaki zil ikonu açılır.
 
-- Liste: seviye, kod, araç, ölçülen değer, sınır, zaman.
-- Dosya: aynı uyarının güncellenen değerleri. Şoföre SMS gitmez.
-- Sonraki sürümde rota sapması ve ağırlık çatışması aynı listeye yeni kod olarak düşer.
+- Rozet: okunmamış uyarı sayısı.
+- Liste: seviye, kod, araç, ölçülen / sınır. Operasyoncu ve firma yöneticisi Görüldü işaretler.
+- Kapanış, koşul düzelince kendiliğinden olur. Şoföre SMS gitmez.
 
 ### Ayarlar
 
@@ -133,7 +133,8 @@ Sonraki sürüm. İzleyici dahil üç firma rolü okur. Yazma yoktur.
 | Sayfa | Platform | Firma yöneticisi | Operasyoncu | İzleyici |
 | --- | --- | --- | --- | --- |
 | Firmalar, sağlık | Yazar | Yok | Yok | Yok |
-| Masa, gidiş, dönüş, uyarı | Yok | Yazar | Yazar | Okur |
+| Özet, gidiş, dönüş | Yok | Yazar | Yazar | Okur |
+| Bildirimler (üst çubuk) | Yok | Yazar | Yazar | Okur |
 | Takip | Yok | Okur | Okur | Okur |
 | Araç ve şoför ana verisi | Yok | Yazar | Okur | Okur |
 | Elle konum, tonaj düzeltmesi, SMS yeniden gönder | Yok | Yazar | Yazar | Yok |

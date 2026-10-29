@@ -16,7 +16,10 @@ def best_pairs(benefits: dict[tuple[str, str], int]) -> list[tuple[str, str]]:
         solver.Add(sum(var for (item, _), var in chosen.items() if item == load_id) <= 1)
     for vehicle_id in vehicles:
         solver.Add(sum(var for (_, item), var in chosen.items() if item == vehicle_id) <= 1)
-    solver.Maximize(sum(benefits[pair] * var for pair, var in chosen.items()))
+    # Negatif fayda da atanabilir; boş bırakmak 0 sayıldığı için ham toplam
+    # maksimize edilirse çözücü hiç seçmez. Sabit ofset sıra korur, atamayı öne alır.
+    offset = max((abs(value) for value in benefits.values()), default=0) + 1
+    solver.Maximize(sum((benefits[pair] + offset) * var for pair, var in chosen.items()))
     status = solver.Solve()
     if status not in {pywraplp.Solver.OPTIMAL, pywraplp.Solver.FEASIBLE}:
         return []

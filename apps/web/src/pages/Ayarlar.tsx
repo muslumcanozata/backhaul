@@ -56,15 +56,19 @@ export function Ayarlar() {
         method: "PATCH",
         body: JSON.stringify({
           enabled_trailer_types: types,
-          ...(emptyCost ? { empty_km_cost: emptyCost } : {}),
-          ...(loadedCost ? { loaded_km_cost: loadedCost } : {}),
+          ...(emptyCost !== "" ? { empty_km_cost: emptyCost } : {}),
+          ...(loadedCost !== "" ? { loaded_km_cost: loadedCost } : {}),
           ...(dailyLimit ? { tacho_daily_min: Number(dailyLimit) } : {}),
           ...(warningLead ? { tacho_warning_min: Number(warningLead) } : {}),
           return_approval: approval,
           auto_assign_estimated: estimatedAuto,
         }),
       });
-      setSaved("Ayarlar kaydedildi");
+      setSaved(
+        emptyCost !== "" && loadedCost !== ""
+          ? "Ayarlar kaydedildi. Dönüş hesabı yeni maliyetlerle yeniden çalıştı."
+          : "Ayarlar kaydedildi",
+      );
       await reload();
     } catch (err) {
       notice(err instanceof Error ? err.message : "Ayar kaydedilemedi");

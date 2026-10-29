@@ -12,8 +12,8 @@ Diyagramlar Mermaid UML’dir (use case, activity, sequence, state).
 | Aktör | Giriş sonrası kabuk | Ana menü |
 | --- | --- | --- |
 | Platform yöneticisi | Sicil | Firmalar |
-| Firma yöneticisi | Sefer | Özet, Gidiş, Dönüş, Takip, Uyarılar, Araçlar, Şoförler, Ayarlar, Kullanıcılar |
-| Operasyoncu | Sefer | Özet, Gidiş, Dönüş, Takip, Uyarılar, Araçlar, Şoförler |
+| Firma yöneticisi | Sefer | Özet, Gidiş, Dönüş, Takip, Araçlar, Şoförler, Ayarlar, Kullanıcılar (+ üst çubuk bildirimler) |
+| Operasyoncu | Sefer | Özet, Gidiş, Dönüş, Takip, Araçlar, Şoförler (+ üst çubuk bildirimler) |
 | İzleyici | Sefer | Aynı menü; yazma düğmeleri yok |
 
 ```mermaid
@@ -29,7 +29,6 @@ flowchart LR
     G[Gidiş kuyruğu]
     D[Dönüş havuzu]
     T[Takip]
-    U[Uyarılar]
     A[Araçlar]
     S[Şoförler]
     Y[Ayarlar]
@@ -65,7 +64,7 @@ usecaseDiagram
     usecase UC6 as "Dönüş havuzunu yönet"
     usecase UC7 as "Dönüş hesapla / onayla"
     usecase UC8 as "Canlı takip izle"
-    usecase UC9 as "Uyarıları oku / görüldü"
+    usecase UC9 as "Bildirimleri oku / görüldü"
     usecase UC10 as "Araç ve şoför sicili"
     usecase UC11 as "Arvento çek / Netgsm ayarla"
   }
@@ -111,7 +110,7 @@ flowchart TD
   Branch --> Gidis[Gidiş kuyruğu]
   Branch --> Donus[Dönüş havuzu]
   Branch --> Takip[Takip haritası]
-  Branch --> Uyari[Uyarılar]
+  Branch --> Uyari[Bildirimler]
   Gidis --> GidisIs[Ekle / Excel / Ata / Çıkar]
   Donus --> DonusIs[Ekle / Excel / Hesapla / Onayla]
   GidisIs --> Dosya[Yük dosya paneli]
@@ -181,8 +180,9 @@ sequenceDiagram
   UI->>API: POST /loads direction=donus
   API-->>UI: havuz
 
-  Ops->>UI: Hesapla
-  UI->>API: POST /returns/solve
+  Ops->>UI: Hesapla (veya Ayarlar’da km maliyeti kaydet)
+  UI->>API: POST /returns/solve veya PATCH /settings
+  Note over API: Maliyet değişince API hesabı kendisi yeniden çalıştırır
   alt km maliyeti eksik
     API-->>UI: COST_RATES_MISSING uyarısı
   else maliyetler dolu
@@ -304,14 +304,14 @@ sequenceDiagram
 
 ## 8. Senaryo: Uyarı ve takograf
 
-**Ekran:** `#uyarilar`, araç dosyası takograf satırı, yük dosyası kalan süreler.
+**Ekran:** üst çubuk zil / bildirimler, araç dosyası takograf satırı, yük dosyası kalan süreler.
 
 ```mermaid
 flowchart TD
   Pos[Yeni konum örneği] --> Tacho[Tahmini sayaç güncelle]
   Tacho --> Fit{Açık sefer sığar mı?}
   Fit -->|Hayır ve kilitli| Break[PLAN_INFEASIBLE: iptal SMS + yük düşer]
-  Fit -->|Uyarı eşiği| Alert[Uyarılar listesi]
+  Fit -->|Uyarı eşiği| Alert[Bildirimler zili]
   Fit -->|Tamam| Ok[Sayaç devam]
   Alert --> Seen[Görüldü işaretle]
 ```
@@ -355,14 +355,14 @@ sequenceDiagram
 
 ## 11. Sayfa × senaryo matrisi
 
-| Senaryo | Özet | Gidiş | Dönüş | Takip | Uyarılar | Araçlar | Ayarlar |
+| Senaryo | Özet | Gidiş | Dönüş | Takip | Bildirim | Araçlar | Ayarlar |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | KPI / grafik okuma | ● | | | | | | |
 | Arvento çek | ● | | | ○ | | | |
 | Gidiş ekle / Excel / ata | | ● | | | | | |
 | Dönüş ekle / Hesapla / onay | | | ● | | | | |
 | Canlı konum izle | ○ | | | ● | | | |
-| Uyarı görüldü | | | | | ● | | |
+| Uyarı görüldü | ○ | | | | ● | | |
 | Araç durum / şoför | | | | | | ● | |
 | Maliyet / Netgsm / bayraklar | | | | | | | ● |
 

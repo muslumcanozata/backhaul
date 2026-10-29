@@ -154,11 +154,14 @@ def patch_settings(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     row = _settings(db, tenant_id)
+    rerun_returns = False
     if body.enabled_trailer_types is not None:
         row.enabled_trailer_types = body.enabled_trailer_types
     if body.empty_km_cost is not None:
+        rerun_returns = True
         row.empty_km_cost = body.empty_km_cost
     if body.loaded_km_cost is not None:
+        rerun_returns = True
         row.loaded_km_cost = body.loaded_km_cost
     for name in (
         "tacho_continuous_min",
@@ -175,11 +178,17 @@ def patch_settings(
     ):
         value = getattr(body, name)
         if value is not None:
+            if name in {"return_approval", "stability_percent", "reject_negative_benefit", "auto_assign_estimated"}:
+                rerun_returns = rerun_returns or getattr(row, name) != value
             setattr(row, name, value)
     if row.tacho_extended_min < row.tacho_daily_min:
         raise HTTPException(status_code=422, detail="Uzatılmış günlük sürüş, günlük sınırın altında kalamaz")
     db.commit()
     db.refresh(row)
+    if rerun_returns:
+        from app.returns import solve_returns
+
+        solve_returns(db, tenant_id, row, state.settings.google_maps_server_key, state.settings)
     return _settings_out(db, tenant_id, state.settings)
 
 

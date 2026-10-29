@@ -75,13 +75,20 @@ def test_solver_picks_the_higher_total_not_the_greedy_pair(shared_client: TestCl
         headers=auth(token),
     )
     assert patched.status_code == 200, patched.text
-    solved = shared_client.post("/returns/solve", headers=auth(token))
-    assert solved.status_code == 200, solved.text
     loads = {item["reference"]: item for item in shared_client.get("/loads", headers=auth(token)).json()}
     assert loads["YAKIN"]["vehicle_id"] == far
     assert loads["UZAK"]["vehicle_id"] == near
     assert loads["YAKIN"]["status"] == "atandi"
     assert Decimal(loads["YAKIN"]["benefit_try"]) + Decimal(loads["UZAK"]["benefit_try"]) == Decimal("1948.00")
+
+    again = shared_client.patch(
+        "/settings",
+        json={"empty_km_cost": "20", "loaded_km_cost": "1"},
+        headers=auth(token),
+    )
+    assert again.status_code == 200, again.text
+    refreshed = {item["reference"]: item for item in shared_client.get("/loads", headers=auth(token)).json()}
+    assert Decimal(refreshed["YAKIN"]["benefit_try"]) + Decimal(refreshed["UZAK"]["benefit_try"]) == Decimal("1898.00")
 
 
 def test_missing_cost_blocks_the_return_pool(shared_client: TestClient) -> None:

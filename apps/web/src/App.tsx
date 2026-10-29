@@ -14,7 +14,6 @@ import { QueuePage } from "./pages/QueuePage";
 import { Sicil } from "./pages/Sicil";
 import { Soforler } from "./pages/Soforler";
 import { Takip } from "./pages/Takip";
-import { Uyarilar } from "./pages/Uyarilar";
 import { SessionProvider, useSession } from "./session";
 import { AuthLayout, Dashboard } from "./shell";
 import type { Page, User } from "./types";
@@ -154,7 +153,6 @@ function Shell({ error, onLogout }: { error: string; onLogout: () => void }) {
         {page === "gidis" ? <QueuePage direction="gidis" /> : null}
         {page === "donus" ? <QueuePage direction="donus" /> : null}
         {page === "takip" ? <Takip /> : null}
-        {page === "uyarilar" ? <Uyarilar /> : null}
         {page === "araclar" ? <Araclar /> : null}
         {page === "soforler" ? <Soforler /> : null}
         {page === "ayarlar" ? <Ayarlar /> : null}

@@ -1,5 +1,5 @@
 import { ReactNode, useState } from "react";
-import { ArrowCircleDownIcon, ArrowCircleUpIcon, BuildingsIcon, GearSixIcon, Icon, ListIcon, MapTrifoldIcon, SquaresFourIcon, SteeringWheelIcon, TruckIcon, UsersThreeIcon, WarningIcon } from "@phosphor-icons/react";
+import { ArrowCircleDownIcon, ArrowCircleUpIcon, BuildingsIcon, GearSixIcon, Icon, ListIcon, MapTrifoldIcon, SquaresFourIcon, SteeringWheelIcon, TruckIcon, UsersThreeIcon } from "@phosphor-icons/react";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
@@ -8,6 +8,7 @@ import ListItemButton from "@mui/material/ListItemButton";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { PAGE_LABEL, ROLE_LABEL } from "./labels";
+import { AlertBell } from "./pages/AlertBell";
 import { drawer } from "./theme";
 import type { Page, User } from "./types";
 
@@ -17,7 +18,6 @@ const ICONS: Record<Page, Icon> = {
   gidis: ArrowCircleUpIcon,
   donus: ArrowCircleDownIcon,
   takip: MapTrifoldIcon,
-  uyarilar: WarningIcon,
   araclar: TruckIcon,
   soforler: SteeringWheelIcon,
   ayarlar: GearSixIcon,
@@ -78,7 +78,8 @@ export function Dashboard({
               </IconButton>
               <Typography variant="h6">{PAGE_LABEL[page]}</Typography>
             </Stack>
-            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+            <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+              {user.role !== "platform_admin" ? <AlertBell /> : null}
               <Box sx={{ textAlign: "right", display: { xs: "none", sm: "block" } }}>
                 <Typography variant="subtitle2">{user.email}</Typography>
                 <Typography variant="caption" color="text.secondary">

@@ -61,7 +61,7 @@ export type Settings = {
   netgsm_configured: boolean;
 };
 
-export type Page = "firmalar" | "masa" | "gidis" | "donus" | "takip" | "uyarilar" | "araclar" | "soforler" | "ayarlar" | "kullanicilar";
+export type Page = "firmalar" | "masa" | "gidis" | "donus" | "takip" | "araclar" | "soforler" | "ayarlar" | "kullanicilar";
 
 export type LiveVehicle = {
   id: string;

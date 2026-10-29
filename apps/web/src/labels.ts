@@ -13,7 +13,6 @@ export const PAGE_LABEL: Record<Page, string> = {
   gidis: "Gidiş kuyruğu",
   donus: "Dönüş havuzu",
   takip: "Takip",
-  uyarilar: "Uyarılar",
   araclar: "Araçlar",
   soforler: "Şoförler",
   ayarlar: "Ayarlar",
@@ -48,7 +47,7 @@ export const CATALOG = ["tenteli", "frigolu", "sal", "lowbed", "tanker"];
 
 export function pagesFor(role: Role): Page[] {
   if (role === "platform_admin") return ["firmalar"];
-  const pages: Page[] = ["masa", "gidis", "donus", "takip", "uyarilar", "araclar", "soforler"];
+  const pages: Page[] = ["masa", "gidis", "donus", "takip", "araclar", "soforler"];
   if (role === "tenant_admin") pages.push("ayarlar", "kullanicilar");
   return pages;
 }

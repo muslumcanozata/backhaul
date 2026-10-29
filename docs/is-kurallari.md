@@ -186,7 +186,7 @@ Gecikme formüle katılmaz. Pencere kaçıran çift zaten `WINDOW` ile elenmişt
 4. Her araca en fazla bir yük, her yüke en fazla bir araç veren ve fayda toplamı en yüksek eşleşme seçilir. Çözüm tam eşleştirme algoritmasıyla bulunur. Araç veya yük sayısı diğerinden az ise açıkta kalanlar havuzda veya boşta durur.
 5. Kilitli atamalar 7. bölümdeki kurala göre çözümün dışında tutulur, kalan serbest araç ve yüklerle hesap tekrarlanır.
 
-Hesap şu olaylarda çalışır: havuza fırsat girmesi, fırsatın iptali, aracın teslimle boşalması, aracın planlanabilir hale gelmesi, operasyoncunun yeniden hesap istemesi. Konum her sinyalde hesabı tetiklemez.
+Hesap şu olaylarda çalışır: havuza fırsat girmesi, fırsatın iptali, aracın teslimle boşalması, aracın planlanabilir hale gelmesi, boş/dolu km maliyetinin veya dönüş eşleşme ayarının değişmesi, operasyoncunun yeniden hesap istemesi. Konum her sinyalde hesabı tetiklemez.
 
 ### Kararlılık
 
