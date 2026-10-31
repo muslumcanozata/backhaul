@@ -1,4 +1,4 @@
-import type { Driver, Page, Role, Settings, Vehicle } from "./types";
+import type { Driver, LiveVehicle, Page, Role, Settings, Vehicle } from "./types";
 
 export const ROLE_LABEL: Record<Role, string> = {
   platform_admin: "Platform yöneticisi",
@@ -91,6 +91,8 @@ export const REJECT_LABEL: Record<string, string> = {
   CAPACITY: "Tonaj sığmıyor",
   TRAILER: "Kasa uymuyor",
   OVERLAP: "Saat çakışıyor",
+  STOP_LIMIT: "Dönüş durak sınırı dolu",
+  WINDOW: "Teslim penceresi kaçar",
   ROW_REQUIRED: "Zorunlu alan boş",
   ROW_TONNAGE: "Tonaj geçersiz",
   ROW_WINDOW: "Teslim penceresi hatalı",
@@ -134,4 +136,32 @@ export function clock(value: string): string {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+export type VehicleState = "yuklu" | "bos" | "soforsuz" | "bayat" | "bakim" | "ariza";
+
+export const VEHICLE_STATE_LABEL: Record<VehicleState, string> = {
+  yuklu: "Yüklü",
+  bos: "Boş",
+  soforsuz: "Şoför yok",
+  bayat: "Sinyal yok",
+  bakim: "Bakımda",
+  ariza: "Arıza",
+};
+
+export const VEHICLE_STATE_COLOR: Record<VehicleState, string> = {
+  yuklu: "#1677ff",
+  bos: "#15b79e",
+  soforsuz: "#7a5af8",
+  bayat: "#98a2b3",
+  bakim: "#f79009",
+  ariza: "#f04438",
+};
+
+export function liveState(vehicle: LiveVehicle, staleMinutes: number): VehicleState {
+  if (vehicle.status === "ariza") return "ariza";
+  if (vehicle.status === "bakimda") return "bakim";
+  if (!vehicle.recorded_at || Date.now() - new Date(vehicle.recorded_at).getTime() > staleMinutes * 60_000) return "bayat";
+  if (!vehicle.driver_name) return "soforsuz";
+  return vehicle.duty === "yuklu" ? "yuklu" : "bos";
 }

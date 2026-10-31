@@ -104,7 +104,7 @@ Operasyoncu veya firma yöneticisi güne **Özet** ile başlar; kuyruk işi **Gi
 flowchart TD
   Start([Giriş]) --> Ozet[Özet: KPI + grafikler + harita]
   Ozet --> Pull{Konumları çek?}
-  Pull -->|Evet| Arvento[POST /integrations/arvento/pull]
+  Pull -->|Evet| Arvento[POST /integrations/telematics/pull]
   Arvento --> Ozet
   Pull -->|Hayır| Branch{Ne yapılacak?}
   Branch --> Gidis[Gidiş kuyruğu]
@@ -330,7 +330,8 @@ flowchart LR
   C --> Patch[PATCH /settings]
   T --> Patch
   F --> Patch
-  R --> PutA[PUT /settings/arvento]
+  R --> PutA[PUT /settings/arvento veya /settings/seyir]
+  R --> Sw[arvento_enabled / seyir_enabled]
   N --> PutN[PUT /settings/netgsm]
 ```
 

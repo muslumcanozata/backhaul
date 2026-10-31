@@ -450,6 +450,29 @@ def solve_pool(
     return {"assigned": count}
 
 
+@router.post("/integrations/telematics/pull", response_model=PullOut)
+def pull_telematics(
+    tenant_id: UUID = Depends(require_operation_tenant),
+    _: User = Depends(require_writer),
+    db: Session = Depends(get_db),
+    state: AppState = Depends(get_state),
+) -> PullOut:
+    from app.routers.fleet import _settings
+    from app.telematics import pull_all
+
+    settings_row = _settings(db, tenant_id)
+    try:
+        updated, unmatched, results = pull_all(db, tenant_id, settings_row, state.settings)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    hard = [item for item in results if item.error and item.updated == 0 and not item.unmatched]
+    if hard and updated == 0 and all(item.error for item in results):
+        raise HTTPException(status_code=502 if any("cevap" in (item.error or "") for item in hard) else 409, detail=hard[0].error)
+    dispatch(db, tenant_id, state.settings)
+    db.commit()
+    return PullOut(updated=updated, unmatched=unmatched)
+
+
 @router.post("/integrations/arvento/pull", response_model=PullOut)
 def pull_arvento(
     tenant_id: UUID = Depends(require_operation_tenant),
@@ -457,6 +480,10 @@ def pull_arvento(
     db: Session = Depends(get_db),
     state: AppState = Depends(get_state),
 ) -> PullOut:
+    from app.routers.fleet import _settings
+
+    if not _settings(db, tenant_id).arvento_enabled:
+        raise HTTPException(status_code=409, detail="Arvento bu firmada kapalı")
     try:
         username, pin1, pin2 = arvento.credentials(db, tenant_id, state.settings)
         packets = arvento.fetch_packets(username, pin1, pin2)
@@ -465,6 +492,34 @@ def pull_arvento(
     except arvento.ArventoError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     updated, unmatched = arvento.apply_packets(db, tenant_id, packets)
+    dispatch(db, tenant_id, state.settings)
+    db.commit()
+    return PullOut(updated=updated, unmatched=unmatched)
+
+
+@router.post("/integrations/seyir/pull", response_model=PullOut)
+def pull_seyir(
+    tenant_id: UUID = Depends(require_operation_tenant),
+    _: User = Depends(require_writer),
+    db: Session = Depends(get_db),
+    state: AppState = Depends(get_state),
+) -> PullOut:
+    from app.routers.fleet import _settings
+    import app.seyir as seyir_mod
+
+    settings_row = _settings(db, tenant_id)
+    if not settings_row.seyir_enabled:
+        raise HTTPException(status_code=409, detail="Seyir bu firmada kapalı")
+    try:
+        username, password = seyir_mod.credentials(db, tenant_id, state.settings)
+        packets = seyir_mod.fetch_packets(username, password)
+        tacho = seyir_mod.fetch_tacho(username, password)
+    except seyir_mod.MissingSecret as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except seyir_mod.SeyirError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    updated, unmatched = seyir_mod.apply_packets(db, tenant_id, packets)
+    seyir_mod.apply_tacho(db, tenant_id, tacho, settings_row)
     dispatch(db, tenant_id, state.settings)
     db.commit()
     return PullOut(updated=updated, unmatched=unmatched)

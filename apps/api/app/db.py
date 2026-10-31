@@ -85,6 +85,11 @@ def _ensure_tacho_columns(bind) -> None:
         "stability_percent": "INTEGER DEFAULT 15",
         "reject_negative_benefit": "BOOLEAN DEFAULT 0",
         "auto_assign_estimated": "BOOLEAN DEFAULT 0",
+        "arvento_enabled": "BOOLEAN DEFAULT 0",
+        "seyir_enabled": "BOOLEAN DEFAULT 0",
+        "home_base_il": "VARCHAR(80)",
+        "home_base_ilce": "VARCHAR(80)",
+        "toll_enabled": "BOOLEAN DEFAULT 0",
     }
     load_columns = {
         "planned_drive_min": "INTEGER",
@@ -94,15 +99,27 @@ def _ensure_tacho_columns(bind) -> None:
         "benefit_try": "NUMERIC(14, 2)",
         "locked": "BOOLEAN DEFAULT 0",
         "broker_firm": "VARCHAR(200)",
+        "toll_try": "NUMERIC(12, 2)",
+        "base_km": "NUMERIC(8, 1)",
+        "chain_value_try": "NUMERIC(14, 2)",
+        "chain_note": "VARCHAR(500)",
+        "driver_advice": "VARCHAR(500)",
+    }
+    road_columns = {
+        "toll_try": "NUMERIC(12, 2)",
+        "toll_state": "VARCHAR(12)",
     }
     secret_columns = {
         "netgsm_usercode": "VARCHAR(500)",
         "netgsm_password": "VARCHAR(500)",
         "netgsm_msgheader": "VARCHAR(500)",
+        "seyir_username": "VARCHAR(500)",
+        "seyir_password": "VARCHAR(500)",
     }
     with bind.connect() as conn:
         _add_missing(conn, "tenant_settings", settings_columns)
         _add_missing(conn, "loads", load_columns)
+        _add_missing(conn, "road_cache", road_columns)
         _add_missing(conn, "tenant_secrets", secret_columns)
         conn.commit()
 

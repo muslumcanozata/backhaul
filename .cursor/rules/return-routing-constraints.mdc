@@ -1,0 +1,62 @@
+---
+description: Dönüş rotası sert kısıtları. Tek yük kuralı, ton kapasitesi, durak sınırı, navlun, zaman, veri kuralları.
+globs: apps/api/app/returns.py,apps/api/app/planning.py,apps/api/app/matching.py,apps/api/app/routing/**
+alwaysApply: false
+---
+
+# Sert kısıtlar
+
+Bu kısıtlar asla ihlal edilmez. Emin değilsen güvenlik ve yasal uyum lehine karar ver.
+
+## Tek yük kuralı
+
+- Bir durakta tek yük alınır. Araçta yük varken başka yük alınmaz.
+- Yük boşaltıldıktan sonra yeni yük alınabilir. "Çok duraklı dönüş", ardışık yüklerden oluşan zincirdir. Aynı anda birden fazla yük taşıma ve yük birleştirme yoktur.
+
+## Durak sınırı
+
+- Gidiş planında en fazla 2 durak (boşaltma noktası). Gidişi değiştirme. Aşan satırı veri uyarısı olarak raporla.
+- Dönüşte en fazla 3 durak (yükleme noktası), yani en fazla 3 ardışık yük. Her yük bir yükleme ve bir boşaltma noktasıdır.
+- Sınırlar config'tir: `max_stops_outbound=2`, `max_stops_return=3`. Zincir uzunluğuna verimlilik ve takograf uyumu karar verir.
+
+## Kapasite (ton)
+
+- Bağlayıcı kapasite birimi tondur. Araçta `capacity_tons`, yükte `tonnage`. Tek yük taşındığı için kontrol yük başınadır: `yük.tonnage ≤ araç.capacity_tons`.
+- Yasal yük sınırı, tırın ton kapasitesidir (`capacity_tons`). Ayrı brüt ağırlık veya dara kontrolü yok. Aks bazlı ağırlık kapsam dışı.
+- `capacity_tons` boşsa veya sıfırsa tır aday olmaz. Eksikliği veri uyarısı olarak raporla.
+- Desi, m³ ve palet kullanılmaz.
+
+## Dönüşün bitişi
+
+- Zincir, tenantın üs noktasına (`home_base`) dönüşle biter. Son yükün boşaltma noktası üs olmak zorunda değil.
+- Son boşaltmadan üsse giden boş bacak, hem maliyete hem takograf kontrolüne girer. Bu bacak durak sayılmaz.
+- `home_base` tanımsızsa son boşaltma noktasında biter. Bunu veri uyarısı olarak yaz.
+
+## Navlun ve maliyet
+
+- Her dönüş yükünde navlun zorunludur. Navlunsuz yük havuza girmez ve rotaya alınmaz.
+- Maliyet iki kaynaktan gelir. Yakıt, sürücü, bakım gibi giderler tenant ayarındaki km başına maliyettir (boş km, dolu km). Köprü ve otoyol ücreti Routes API'den gelir.
+- Zincirin faydası: `Σ navlun − Σ (boş_km × boş_km_maliyeti + dolu_km × dolu_km_maliyeti) − Σ geçiş ücreti`. Toplam, zincirdeki yükleri ve aralarındaki boş bacakları kapsar.
+- Geçiş ücreti bilinmiyorsa 0 sayma. "Bilinmiyor" yaz ve bu çifti otomatik atamaya alma.
+- Routes API ücreti binek araç varsayımıyla verir. Ağır vasıta fiyatı farklı olabilir. Bunu veri uyarısına yaz.
+
+## Zaman ve uyum
+
+- Yükün kasa tipi aracınkiyle aynı olmalı.
+- Her duraktaki yükleme ve teslim penceresi tutmalı. Yasal molalar eklenmiş varış pencere dışına çıkıyorsa rota elenir.
+- Gidiş planındaki varış ve zamanlar değiştirilemez.
+
+## Takograf
+
+- Mola ve dinlenme için konum seçilmez. Planlayıcı yalnız zamanı hesaplar ve sürücüye takograf süresine göre tavsiye yazar.
+- Tüm tenantlarda AETR esas alınır (`aetr-tachograph`).
+- Kalan süre = sınır − kullanılan. Zincirde tüm bacaklar, duraklardaki bekleme ve eklenen molalar takografa karşı birlikte denenir.
+- Tüm tenantlar Arvento ve Seyir takograf verisine yetkili sayılır. Ölçülmüş sayaç esastır.
+- Sürücü kartı eşleşmezse veya veri gelmezse sayaç `tahmini` kalır ve veri uyarısı yazılır. Tahmini sayaçla otomatik atama, tenant bayrağı kapalıyken yapılmaz.
+
+## Veri
+
+- Eksik veriyi sessizce varsayma. Eksikliği raporla.
+- Koordinat yoksa il merkezine düş. Mesafe `yaklaşık` ise otomatik atamayı kesinleştirme.
+- Bilmediğin değeri uydurma. "Bilinmiyor" de ve neye ihtiyaç olduğunu yaz.
+- Varsayımları koda gömme. `docs/assumptions.md` içine yaz.

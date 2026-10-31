@@ -22,26 +22,22 @@ def solve_returns(db: Session, tenant_id, settings: TenantSettings, api_key: str
         .filter(Load.tenant_id == tenant_id, Load.direction == "donus", Load.status.in_(("havuz", "onerildi", "atandi")), Load.locked == False)
         .all()
     )
-    locked_vehicles = {
-        row.vehicle_id
-        for row in db.query(Load).filter(Load.tenant_id == tenant_id, Load.direction == "donus", Load.locked == True, Load.vehicle_id.is_not(None))
-    }
     options: dict[tuple[str, str], dict] = {}
     benefits: dict[tuple[str, str], int] = {}
     for load in free:
-        for row in candidates(db, settings, load, api_key):
+        for row in candidates(db, settings, load, api_key, app_settings, free):
             if not row["eligible"] or row["distance_quality"] != "google":
                 continue
-            if str(row["vehicle_id"]) in {str(item) for item in locked_vehicles}:
+            if row["toll_unknown"]:
                 continue
             vehicle = db.get(Vehicle, row["vehicle_id"])
             reading = reading_of(db.get(TachoState, vehicle.driver_id) if vehicle and vehicle.driver_id else None)
             if reading is not None and reading.source == "tahmini" and not settings.auto_assign_estimated:
                 continue
-            benefit = row["rank"]
-            if benefit is None:
+            benefit = row["plan_value"]
+            if benefit is None or row["rank"] is None:
                 continue
-            if settings.reject_negative_benefit and benefit < 0:
+            if settings.reject_negative_benefit and row["rank"] < 0:
                 continue
             pair = (str(load.id), str(row["vehicle_id"]))
             options[pair] = row
@@ -62,7 +58,7 @@ def _stable(free: list[Load], settings: TenantSettings, benefits: dict[tuple[str
     current = [load for load in free if load.status == "atandi" and load.vehicle_id is not None]
     if not current:
         return chosen
-    current_total = sum(int((load.benefit_try or 0) * 100) for load in current)
+    current_total = sum(int((load.chain_value_try if load.chain_value_try is not None else load.benefit_try or 0) * 100) for load in current)
     new_total = sum(benefits[pair] for pair in chosen)
     limit = current_total * (100 + settings.stability_percent) / 100
     if new_total > limit:
@@ -99,6 +95,11 @@ def _apply(db: Session, tenant_id, settings: TenantSettings, free: list[Load], c
         load.distance_quality = row["distance_quality"]
         load.rank_value = row["rank"]
         load.benefit_try = row["rank"]
+        load.toll_try = row["toll_try"]
+        load.base_km = row["base_km"]
+        load.chain_value_try = row["plan_value"]
+        load.chain_note = row["chain_note"]
+        load.driver_advice = row["advice"]
         load.planned_drive_min = row["drive_min"]
         load.planned_break_min = row["break_min"]
         load.calculated_at = datetime.now(UTC)
@@ -119,6 +120,11 @@ def _release(db: Session, load: Load) -> None:
     load.status = "havuz"
     load.uses_extension = False
     load.benefit_try = None
+    load.toll_try = None
+    load.base_km = None
+    load.chain_value_try = None
+    load.chain_note = None
+    load.driver_advice = None
 
 
 def _shift_extension(db: Session, driver_id, delta: int) -> None:

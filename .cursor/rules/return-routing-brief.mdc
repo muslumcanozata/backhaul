@@ -1,0 +1,51 @@
+---
+description: Dönüş yükü rota planlayıcısı. Rol, iş akışı, hedef sırası ve modül yapısı. Çok duraklı dönüş, ton kapasitesi, AETR.
+globs: apps/api/app/returns.py,apps/api/app/planning.py,apps/api/app/matching.py,apps/api/app/routing/**
+alwaysApply: false
+---
+
+# Dönüş yükü rota planlayıcı
+
+Backhaul çok kiracılıdır. Planlayıcı hiçbir firmaya, şehre veya müşteriye özel kodlanmaz. Firma farkı yalnızca tenant ayarı ve veridir.
+
+Görev: Gidiş yükünü boşaltan tır için, bulunduğu yerden en verimli ve takografa uygun dönüş rotasını bulmak. Her karar insanın okuyacağı bir gerekçeyle gelir. Kara kutu yoktur.
+
+## Öncelik
+
+Planlamada önemli olan iki şey: tasarruf ve takograf verimliliği. Tasarruf, boş km ve geçiş ücretini düşürüp faydayı artırmaktır. Takograf verimliliği, sürücünün yasal süresini boşa harcatmadan kullanmaktır.
+
+## Akış
+
+1. Gidiş planı sabittir. Değiştirme, optimize etme. Excel ile veya SAP API ile girer (SAP şimdilik mock). Gidiş yükü tamamen boşaltıldıktan sonra tırın son boşaltma noktası ve zamanı dönüşün başlangıcıdır.
+   - Dönüş, tenantın üs noktasında biter (`home_base`). Son dönüş yükünü üste boşaltmak zorunlu değildir. Son yük boşaltıldıktan sonra üsse boş dönüş, maliyete ve takografa dahildir. Ölçüt kârlı dönüştür.
+2. Dönüş fırsatları tenant havuzundan gelir. Navlun zorunludur.
+3. Konum ve takograf, tenant'ın açık sağlayıcısından (Arvento, Seyir, ikisi birden) gelir. Ham sağlayıcı alanı planlayıcıya sızmaz.
+4. Sıra: aday süz, takografı kontrol et, tek yük ve ardışık yük zinciri üret, skorla, en iyiyi seç, gerekçelendir. Zincirde aynı anda tek yük taşınır.
+5. Yükler netleştikçe ve onaylanıp kilitlendikçe atama hattı sürücüye SMS gönderir. Zincirin kilitlenmemiş yükleri öneri kalır ve durum değişince yeniden çözülür.
+6. Plan uygulanamıyorsa bunu açıkça söyle ve alternatif öner: molayla kaydırma, başka tır, boş dönüş.
+
+Önce uçtan uca çalışan basit akış (açgözlü + takograf kontrolü). Sonra çok duraklı ve gelişmiş optimizasyon.
+
+## Hedef sırası
+
+1. Sert kısıtlar hiçbir hedef için esnemez (`return-routing-constraints`).
+2. Fayda (TL) en yüksek olan seçilir: `navlun − boş_km × boş_km_maliyeti − dolu_km × dolu_km_maliyeti − geçiş ücreti`. Boş km, son boşaltmadan üsse dönüş bacağını da içerir. Geçiş ücreti Routes API'den, km maliyetleri tenant ayarından gelir.
+3. Fayda eşitse boş km düşük, sonra ton doluluğu (`yük.tonnage / capacity_tons`) yüksek olan seçilir.
+4. Tırı takograf sınırını aşmadan, yasal sürenin yüksek kısmında kullan. Limit yüzünden yarım kalan günleri azalt.
+
+Hedefler çatışırsa hangisinin ağır bastığını gerekçede yaz.
+
+## Modül yapısı
+
+Planlayıcı `apps/api/app/routing/` altında modül olarak kurulur. Ayrı bir `agent/` paketi yoktur. Araçlar bu modülün fonksiyonlarıdır:
+
+- `read_outbound_plan`, `read_return_loads`
+- `get_vehicle_positions`, `get_driver_hours_remaining`
+- `distance_and_duration` (km, süre ve geçiş ücreti; Routes API)
+- `check_capacity` (ton; yasal yük sınırı da budur), `check_stops`
+- `check_tachograph_feasibility`
+- `score_route`, `driver_advice` (takograf kalan süresine göre mola ve dinlenme tavsiyesi)
+
+Manuel plana kıyas (`compare_with_manual`) 2. faza ayrıldı. Şimdi yazılmaz.
+
+Mevcut `returns.py`, `planning.py` ve `matching.py` tek yüklü eşleştirmeyi çözer. Yeni modül onları sarar veya genişletir. Kopyalamaz.

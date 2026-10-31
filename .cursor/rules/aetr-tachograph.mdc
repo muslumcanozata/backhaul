@@ -1,0 +1,32 @@
+---
+description: AETR takograf kuralları (TR-AETR-2026). Tüm tenantlarda tek paket. Sürüş, mola, dinlenme sınırları.
+globs: apps/api/app/tacho.py,apps/api/app/seyir.py,apps/api/app/arvento.py,apps/api/app/routing/**,apps/api/tests/test_tacho.py
+alwaysApply: false
+---
+
+# AETR takograf
+
+Tüm tenantlarda tek kural paketi: `TR-AETR-2026`. Ayrıntı ve kaynak: `docs/is-kurallari.md` §4. Değerler config'ten okunur, koda gömülmez.
+
+| Kural | Sınır |
+| --- | --- |
+| Kesintisiz sürüş | 4,5 saat, ardından 45 dk mola (önce 15, sonra 30 olarak bölünebilir) |
+| Günlük sürüş | 9 saat; takvim haftasında en fazla 2 kez 10 saat |
+| Haftalık sürüş | 56 saat |
+| Ardışık iki hafta | 90 saat |
+| Günlük dinlenme | 11 saat; iki haftalık dinlenme arasında en fazla 3 kez 9 saate iner |
+| Haftalık dinlenme | 45 saat; azaltılmış en az 24 saat |
+
+## Uygulama
+
+- Firma limiti bu değerleri yalnızca küçültür. Büyütme reddedilir.
+- Sayaçlar yalnızca sürüş süresidir. Bekleme, yükleme ve diğer iş eklenmez. Bu süreler yine de 24 saatlik günlük pencereye girer.
+- Plan, sürücünün şu ana kadar kullandığı süreyi hesaba katar: kalan = sınır − kullanılan.
+- Çok duraklı rotada bacaklar sırayla denenir. Sürüş 4,5 saati doldurursa mola eklenir. Eklenen mola ve dinlenme pencereyi kaçırtırsa rota elenir.
+- Seyir "kalan" verir, kural motoru "kullanılan" ister: `kullanılan = sınır − kalan`, sıfırın altına inmez.
+
+## Kaynak
+
+- `ölçülmüş`: sağlayıcının takograf sayaçları. Plan bunu kullanır.
+- `tahmini`: hızdan türetilir. Otomatik dönüş için tenant bayrağı gerekir.
+- Seyir takograf adaptörü yazılıdır. Arvento takograf eşlemesi henüz yoktur; o zamana kadar Arvento hesabında sayaç `tahmini` kalır.

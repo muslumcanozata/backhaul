@@ -48,7 +48,14 @@ export type Settings = {
   empty_km_cost: string | null;
   loaded_km_cost: string | null;
   gps_stale_minutes: number;
+  arvento_enabled: boolean;
+  seyir_enabled: boolean;
+  home_base_il: string | null;
+  home_base_ilce: string | null;
+  toll_enabled: boolean;
   arvento_configured: boolean;
+  seyir_configured: boolean;
+  enabled_telematics: string[];
   tacho_continuous_min: number;
   tacho_daily_min: number;
   tacho_extended_min: number;
@@ -113,6 +120,11 @@ export type Load = {
   loaded_km: string | null;
   distance_quality: string | null;
   benefit_try: string | null;
+  toll_try: string | null;
+  base_km: string | null;
+  chain_value_try: string | null;
+  chain_note: string | null;
+  driver_advice: string | null;
   locked: boolean;
   sms_status: string | null;
   sms_job_id: string | null;

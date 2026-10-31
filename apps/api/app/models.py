@@ -47,6 +47,11 @@ class TenantSettings(Base):
     stability_percent: Mapped[int] = mapped_column(default=15)
     reject_negative_benefit: Mapped[bool] = mapped_column(default=False)
     auto_assign_estimated: Mapped[bool] = mapped_column(default=False)
+    arvento_enabled: Mapped[bool] = mapped_column(default=False)
+    seyir_enabled: Mapped[bool] = mapped_column(default=False)
+    home_base_il: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    home_base_ilce: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    toll_enabled: Mapped[bool] = mapped_column(default=False)
     tenant: Mapped[Tenant] = relationship(back_populates="settings")
 
 
@@ -140,6 +145,11 @@ class Load(Base):
     uses_extension: Mapped[bool] = mapped_column(default=False)
     benefit_try: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
     locked: Mapped[bool] = mapped_column(default=False)
+    toll_try: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    base_km: Mapped[Decimal | None] = mapped_column(Numeric(8, 1), nullable=True)
+    chain_value_try: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    chain_note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    driver_advice: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
 
 class TachoState(Base):
@@ -181,6 +191,8 @@ class TenantSecret(Base):
     arvento_username: Mapped[str | None] = mapped_column(String(500), nullable=True)
     arvento_pin1: Mapped[str | None] = mapped_column(String(500), nullable=True)
     arvento_pin2: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    seyir_username: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    seyir_password: Mapped[str | None] = mapped_column(String(500), nullable=True)
     netgsm_usercode: Mapped[str | None] = mapped_column(String(500), nullable=True)
     netgsm_password: Mapped[str | None] = mapped_column(String(500), nullable=True)
     netgsm_msgheader: Mapped[str | None] = mapped_column(String(500), nullable=True)
@@ -211,3 +223,5 @@ class RoadCache(Base):
     kilometers: Mapped[Decimal] = mapped_column(Numeric(8, 1))
     seconds: Mapped[int] = mapped_column()
     quality: Mapped[str] = mapped_column(String(20))
+    toll_try: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    toll_state: Mapped[str | None] = mapped_column(String(12), nullable=True)

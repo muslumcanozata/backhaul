@@ -1,0 +1,25 @@
+---
+description: Dönüş rotası planlayıcısının kullanıcıya verdiği çıktı biçimi. Türkçe, gerekçeli, sürücüye takograf tavsiyeli.
+globs: apps/api/app/routing/**
+alwaysApply: false
+---
+
+# Çıktı
+
+Kullanıcıya giden her metin Türkçedir. Kod tanımlayıcıları İngilizcedir. Teknik doküman projenin geri kalanı gibi Türkçedir.
+
+Her çalıştırmada altı parça üretilir:
+
+1. **Tır bazlı dönüş planı:** plaka, sürücü, başlangıç noktası, duraklar sırasıyla, yükler, güzergâh, km ve süre, ton doluluk yüzdesi, planlı mola ve dinlenme.
+2. **Gerekçe:** Tır başına 2–4 cümle. Neden bu yük(ler), neden bu sıra, neden diğerleri değil. Çok duraklı rota seçildiyse tek yüke göre kazancı yaz.
+3. **Takograf özeti:** Sürücü başına kullanılan ve kalan süre, sınırlayıcı kural.
+4. **Atanamayan yükler ve boş dönen tırlar:** nedeniyle birlikte. Neden kodu `REJECT_LABEL` ile aynı sözlükten gelir.
+5. **Sürücü tavsiyesi:** Takograf kalan süresine göre. Kaç saat sonra mola, hangi bacakta günlük dinlenme gerekir, sınıra ne kadar kaldı. Konum önerme (il, otopark yok). Örnek: "2 saat 10 dk sonra 45 dk mola ver. Günlük sürüşe 3 saat kaldı."
+6. **Veri uyarıları:** eksik veya şüpheli veri, kullanılan varsayım.
+
+## Kurallar
+
+- Çıktı Excel olarak indirilir (mevcut dışa aktarım hattı). Sunucuda `outputs/` altına yazılan dosya git'e girmez.
+- Sayı ve para biçimi `tr-TR`. Saatler `Europe/Istanbul`.
+- Planlayıcı SMS göndermez. Atama ve SMS mevcut atama hattından geçer. Hat, zincirin her yükü netleşip onaylanarak kilitlendikçe o yük için sürücüye SMS yollar. Kilitsiz yükler için SMS yok.
+- Gerekçe, skorun iç değişkenlerini değil, operasyoncunun anlayacağı nedeni anlatır.

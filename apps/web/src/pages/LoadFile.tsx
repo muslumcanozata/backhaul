@@ -121,7 +121,11 @@ export function LoadFile({ load, onChanged, onClose }: { load: Load; onChanged: 
         {detail.customer ? <Fact label="Müşteri" value={detail.customer} /> : null}
         <Fact label="Fayda" value={detail.benefit_try ? `${detail.benefit_try} TL · ${detail.empty_km ?? "—"} boş km · ${detail.loaded_km ?? "—"} dolu km` : "Hesap yok"} />
         <Fact label="Maliyet" value={costs} />
+        {detail.toll_try ? <Fact label="Geçiş ücreti" value={`${detail.toll_try} TL`} /> : null}
+        {detail.base_km ? <Fact label="Üse dönüş" value={`${detail.base_km} km`} /> : null}
+        {detail.chain_note ? <Fact label="Zincir" value={detail.chain_note} /> : null}
         <Fact label="Süre" value={detail.planned_break_min == null ? "Mola yok" : `${detail.planned_break_min} dk mola`} />
+        {detail.driver_advice ? <Fact label="Sürücü tavsiyesi" value={detail.driver_advice} /> : null}
         <Fact label="SMS" value={detail.sms_job_id ? `${detail.sms_status} · ${detail.sms_job_id}` : (detail.sms_status ?? "Yok")} />
         <Fact label="Takograf" value={tacho} />
         <Fact label="Koordinat" value={detail.geocode_quality === "google" ? "Google" : "Yaklaşık"} />

@@ -126,7 +126,7 @@ def parse_packets(root: ET.Element) -> list[Packet]:
 
 def apply_packets(db: Session, tenant_id, packets: list[Packet]) -> tuple[int, list[str]]:
     vehicles = db.query(Vehicle).filter(Vehicle.tenant_id == tenant_id).all()
-    by_plate = {vehicle.plate: vehicle for vehicle in vehicles}
+    by_plate = {_plate_key(vehicle.plate): vehicle for vehicle in vehicles}
     by_node = {vehicle.device_id: vehicle for vehicle in vehicles if vehicle.device_id}
     drivers = db.query(Driver).filter(Driver.tenant_id == tenant_id).all()
     updated = 0
@@ -135,11 +135,19 @@ def apply_packets(db: Session, tenant_id, packets: list[Packet]) -> tuple[int, l
     for packet in packets:
         vehicle = None
         if packet.plate:
-            vehicle = by_plate.get(packet.plate.replace(" ", "").upper())
+            vehicle = by_plate.get(_plate_key(packet.plate))
         if vehicle is None and packet.node:
             vehicle = by_node.get(packet.node)
         if vehicle is None:
             unmatched.append(packet.plate or packet.node or "")
+            continue
+        latest = (
+            db.query(VehiclePosition)
+            .filter(VehiclePosition.vehicle_id == vehicle.id)
+            .order_by(VehiclePosition.recorded_at.desc())
+            .first()
+        )
+        if latest is not None and _as_utc(latest.recorded_at) >= _as_utc(packet.recorded_at):
             continue
         db.add(
             VehiclePosition(
@@ -154,23 +162,33 @@ def apply_packets(db: Session, tenant_id, packets: list[Packet]) -> tuple[int, l
         )
         db.flush()
         _match_driver(db, vehicle, drivers, packet)
-        latest = (
+        written = (
             db.query(VehiclePosition)
             .filter(VehiclePosition.vehicle_id == vehicle.id)
             .order_by(VehiclePosition.recorded_at.desc())
             .first()
         )
-        if latest is not None:
-            observe(db, vehicle, latest)
+        if written is not None:
+            observe(db, vehicle, written)
             settings = db.get(TenantSettings, tenant_id)
             if settings is not None:
                 sync_alerts(db, vehicle, settings)
         updated += 1
         changed.append(vehicle)
-    db.commit()
+    db.flush()
     for vehicle in changed:
         announce(db, tenant_id, vehicle)
     return updated, unmatched
+
+
+def _plate_key(value: str) -> str:
+    return value.replace(" ", "").upper()
+
+
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _match_driver(db: Session, vehicle: Vehicle, drivers: list[Driver], packet: Packet) -> None:

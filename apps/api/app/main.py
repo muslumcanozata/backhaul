@@ -28,12 +28,17 @@ async def lifespan(app: FastAPI):
         raise RuntimeError(str(exc)) from exc
     hub.bind(asyncio.get_running_loop())
     reports = asyncio.create_task(_report_loop(app))
+    tasks = [reports]
+    if app.state.runtime.settings.telematics_poll_seconds > 0:
+        tasks.append(asyncio.create_task(_telematics_loop(app)))
     yield
-    reports.cancel()
-    try:
-        await reports
-    except asyncio.CancelledError:
-        pass
+    for task in tasks:
+        task.cancel()
+    for task in tasks:
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
 
 async def _report_loop(app: FastAPI) -> None:
@@ -45,6 +50,37 @@ async def _report_loop(app: FastAPI) -> None:
             return
         except Exception:
             log.exception("İletim raporu okunamadı")
+
+
+async def _telematics_loop(app: FastAPI) -> None:
+    seconds = app.state.runtime.settings.telematics_poll_seconds
+    while True:
+        try:
+            await asyncio.sleep(seconds)
+            await asyncio.to_thread(_pull_telematics, app.state.runtime)
+        except asyncio.CancelledError:
+            return
+        except Exception:
+            log.exception("Konum çekimi başarısız")
+
+
+def _pull_telematics(runtime: AppState) -> None:
+    from sqlalchemy import or_
+
+    from app.models import TenantSettings
+    from app.netgsm import dispatch
+    from app.telematics import pull_all
+
+    with runtime.factory() as db:
+        rows = db.query(TenantSettings).filter(or_(TenantSettings.arvento_enabled.is_(True), TenantSettings.seyir_enabled.is_(True))).all()
+        for row in rows:
+            try:
+                pull_all(db, row.tenant_id, row, runtime.settings)
+                dispatch(db, row.tenant_id, runtime.settings)
+                db.commit()
+            except Exception:
+                db.rollback()
+                log.exception("Konum çekimi başarısız: %s", row.tenant_id)
 
 
 def _poll_saved(runtime: AppState) -> None:

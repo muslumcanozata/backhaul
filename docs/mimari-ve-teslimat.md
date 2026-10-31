@@ -144,7 +144,7 @@ Sürücü eşlemesi `GetDriverFromNode` ile cihazdan okunur. Plaka ve cihaz list
 
 Çekme aralığı `GetVehicleStatusV4` için 60 saniye, iki takograf metodu için 5 dakikadır. Aralık firma hesabına göre büyütülebilir. İstemci WSDL’in tamamından istemci üretmez. Yalnızca bu metotları çağırır. Ham `DataSet` sınırlı süre saklanır. Test, kaydedilmiş SOAP cevabıyla çevrimdışı çalışır.
 
-Seyir eşlemesi, A-2 kapanınca aynı anlık görüntüye bir adaptör olarak eklenir. O zamana kadar Seyir hesabı “bekliyor” durumunda durur ve işleyici o hesap için istek atmaz.
+Seyir adaptörü `LocationService` V2.5 üzerindedir: `https://ws.seyirmobil.com/LocationService.asmx`, kimlik `user_name` + `password`. Konum `GetActualLocations`, takograf `GetDriversLastTaviState`. Firma ayarında `arvento_enabled` / `seyir_enabled` tenant switch’leri bağımsızdır; ikisi birden açık olabilir. Kapalı sağlayıcıya istek gitmez. `POST /integrations/telematics/pull` açık ve yapılandırılmış sağlayıcıları çeker; aynı araçta daha yeni `recorded_at` kazanır.
 
 ### Google Maps
 

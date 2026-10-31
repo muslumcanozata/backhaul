@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
 import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
@@ -16,15 +17,32 @@ import { STATUS_LABEL, TRAILER_LABEL, availability, canWriteMaster, driverName }
 import { useSession } from "../session";
 import { VehicleFile } from "./VehicleFile";
 
-export function Araclar() {
+export function Araclar({ initialFilter = "" }: { initialFilter?: string }) {
   const { token, user, notice } = useSession();
   const { vehicles, drivers, settings, reload } = useFleet();
   const [selected, setSelected] = useState("");
+  const [filter, setFilter] = useState(initialFilter);
   const [plate, setPlate] = useState("");
   const [capacity, setCapacity] = useState("24");
   const [trailer, setTrailer] = useState(settings?.enabled_trailer_types[0] ?? "tenteli");
   const vehicle = vehicles.find((item) => item.id === selected);
   const types = settings?.enabled_trailer_types ?? ["tenteli"];
+
+  useEffect(() => {
+    setFilter(initialFilter);
+  }, [initialFilter]);
+
+  const groups = new Map<string, number>();
+  vehicles.forEach((item) => {
+    const label = availability(item, settings);
+    groups.set(label, (groups.get(label) ?? 0) + 1);
+  });
+  const shown = filter ? vehicles.filter((item) => availability(item, settings) === filter) : vehicles;
+
+  function choose(next: string) {
+    setFilter(next);
+    window.location.hash = next ? `araclar/${encodeURIComponent(next)}` : "araclar";
+  }
 
   useEffect(() => {
     if (!types.includes(trailer)) setTrailer(types[0]);
@@ -50,8 +68,15 @@ export function Araclar() {
     <Box sx={{ display: "grid", gap: 3, gridTemplateColumns: { xs: "1fr", lg: canWriteMaster(user.role) ? "1.4fr 0.8fr" : "1fr" } }}>
       <Card>
         <CardHeader title="Araçlar" subheader={vehicle ? "Dosya sağdan açılır." : "Dosya için bir araç seçin."} />
+        <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1, px: 2, pb: 1 }}>
+          <Chip label={`Tümü ${vehicles.length}`} color={filter ? "default" : "primary"} onClick={() => choose("")} />
+          {[...groups.entries()].map(([label, count]) => (
+            <Chip key={label} label={`${label} ${count}`} color={filter === label ? "primary" : "default"} onClick={() => choose(label)} />
+          ))}
+          {filter && !groups.has(filter) ? <Chip label={`${filter} 0`} color="primary" onClick={() => choose("")} /> : null}
+        </Stack>
         <List>
-          {vehicles.map((item) => (
+          {shown.map((item) => (
             <ListItemButton key={item.id} selected={item.id === selected} onClick={() => setSelected(item.id)}>
               <Stack>
                 <Typography variant="subtitle2">{item.plate}</Typography>
@@ -63,9 +88,9 @@ export function Araclar() {
             </ListItemButton>
           ))}
         </List>
-        {vehicles.length === 0 ? (
+        {shown.length === 0 ? (
           <CardContent>
-            <Typography color="text.secondary">Kayıtlı araç yok.</Typography>
+            <Typography color="text.secondary">{vehicles.length === 0 ? "Kayıtlı araç yok." : "Bu durumda araç yok."}</Typography>
           </CardContent>
         ) : null}
       </Card>

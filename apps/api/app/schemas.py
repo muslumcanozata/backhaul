@@ -65,6 +65,11 @@ class SettingsPatch(BaseModel):
     stability_percent: int | None = None
     reject_negative_benefit: bool | None = None
     auto_assign_estimated: bool | None = None
+    arvento_enabled: bool | None = None
+    seyir_enabled: bool | None = None
+    home_base_il: str | None = None
+    home_base_ilce: str | None = None
+    toll_enabled: bool | None = None
 
     def check_types(self) -> None:
         if self.enabled_trailer_types is None:
@@ -91,7 +96,19 @@ class SettingsOut(BaseModel):
     stability_percent: int = 15
     reject_negative_benefit: bool = False
     auto_assign_estimated: bool = False
+    arvento_enabled: bool = False
+    seyir_enabled: bool = False
+    seyir_configured: bool = False
+    enabled_telematics: list[str] = []
+    home_base_il: str | None = None
+    home_base_ilce: str | None = None
+    toll_enabled: bool = False
     netgsm_configured: bool = False
+
+
+class SeyirSecretIn(BaseModel):
+    username: str = Field(min_length=1, max_length=80)
+    password: str = Field(min_length=1, max_length=80)
 
 
 class NetgsmSecretIn(BaseModel):
@@ -195,6 +212,11 @@ class LoadOut(BaseModel):
     distance_quality: str | None
     rank_value: Decimal | None
     benefit_try: Decimal | None = None
+    toll_try: Decimal | None = None
+    base_km: Decimal | None = None
+    chain_value_try: Decimal | None = None
+    chain_note: str | None = None
+    driver_advice: str | None = None
     locked: bool = False
     sms_status: str | None = None
     sms_job_id: str | None = None
@@ -267,6 +289,12 @@ class CandidateOut(BaseModel):
     drive_min: int | None = None
     break_min: int | None = None
     uses_extension: bool = False
+    toll_try: Decimal | None = None
+    toll_unknown: bool = False
+    base_km: Decimal | None = None
+    plan_value: Decimal | None = None
+    chain_note: str | None = None
+    advice: str | None = None
 
 
 class AlertOut(BaseModel):

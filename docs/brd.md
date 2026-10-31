@@ -230,7 +230,7 @@ Bunlar belgeyi bekletmez. Adaptörün canlıya çıkmasını bekletir.
 | No | Soru | Durum |
 | --- | --- | --- |
 | A-1 | Pilot Arvento hesabında takograf ve CAN ağırlığı dolu mu? | Ertelendi. Metotlar WSDL’de var, kolonlar `DataSet` içinde. Örnek cevap gelene kadar takograf `tahmini`, tonaj sefer kaydındandır. |
-| A-2 | Seyir servisinin adresi, kimlik yöntemi ve örnek cevabı nedir? | Ertelendi. Şirketten talep edilecek. Sözleşme gelmeden Seyir canlı veri çekmez. |
+| A-2 | Seyir servisinin adresi, kimlik yöntemi ve örnek cevabı nedir? | Kapandı. LocationService V2.5: `https://ws.seyirmobil.com/LocationService.asmx`, `user_name`/`password`, `GetActualLocations` + `GetDriversLastTaviState`. Plan: [seyir-entegrasyon-plani.md](seyir-entegrasyon-plani.md). |
 | A-3 | Dönüş navlunu havuza girerken biliniyor mu? | Kapandı. Dönüş kaydı fırsattır, navlunuyla girer. Uygun tır, dönüşte bu navlunla otomatik eşleşir. |
 | A-4 | Dorse tipleri nelerdir? | Kapandı. Katalog: tenteli, frigolu, sal, lowbed, tanker. İlk müşterinin tamamı tenteli ve 24 veya 25 ton. |
 | A-5 | Adres ve yol mesafesi hangi hizmetten gelir? | Kapandı. Google Maps. Geocoding, Routes API ve harita için Maps JavaScript API. |

@@ -11,6 +11,8 @@ CUSTOMER_SECRET_FIELDS = (
     "arvento_username",
     "arvento_pin1",
     "arvento_pin2",
+    "seyir_username",
+    "seyir_password",
 )
 
 
@@ -36,7 +38,14 @@ class Settings(BaseSettings):
     arvento_username: str | None = None
     arvento_pin1: str | None = None
     arvento_pin2: str | None = None
+    seyir_username: str | None = None
+    seyir_password: str | None = None
     google_maps_server_key: str | None = None
+    max_stops_outbound: int = 2
+    max_stops_return: int = 3
+    chain_candidates: int = 5
+    chain_max_wait_min: int = 360
+    telematics_poll_seconds: int = 30
 
     @field_validator(
         "tenant_id",

@@ -10,16 +10,18 @@ import Typography from "@mui/material/Typography";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api } from "../api";
 import { useFleet } from "../fleet-data";
-import { LOAD_STATUS_LABEL, availability, canOperate, clock } from "../labels";
+import { LOAD_STATUS_LABEL, VEHICLE_STATE_COLOR, VEHICLE_STATE_LABEL, availability, canOperate, clock, type VehicleState } from "../labels";
 import { useSession } from "../session";
 import type { AlertItem, Load } from "../types";
-import { DeskMap } from "./DeskMap";
+import { useLiveVehicles } from "../live-data";
+import { FleetMap } from "./FleetMap";
 
 const PIE = ["#1877F2", "#22C55E", "#FFAB00", "#FF5630", "#8E33FF", "#00B8D9"];
 
 export function Masa() {
   const { token, user, notice } = useSession();
   const { vehicles, settings, reload } = useFleet();
+  const live = useLiveVehicles(settings?.gps_stale_minutes ?? 15);
   const [loads, setLoads] = useState<Load[]>([]);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [pullNote, setPullNote] = useState("");
@@ -72,11 +74,14 @@ export function Masa() {
     return [...bag.entries()].map(([name, value]) => ({ name, value }));
   }, [vehicles, settings]);
 
+  const canPull =
+    Boolean(settings?.arvento_enabled && settings.arvento_configured) || Boolean(settings?.seyir_enabled && settings.seyir_configured);
+
   async function pull() {
     notice("");
     setPullNote("");
     try {
-      const pulled = await api<{ updated: number; unmatched: string[] }>("/integrations/arvento/pull", token, { method: "POST" });
+      const pulled = await api<{ updated: number; unmatched: string[] }>("/integrations/telematics/pull", token, { method: "POST" });
       const missed = pulled.unmatched.filter(Boolean);
       setPullNote(missed.length ? `${pulled.updated} araç güncellendi. Eşleşmeyen plaka: ${missed.join(", ")}` : `${pulled.updated} araç güncellendi`);
       await reload();
@@ -96,7 +101,7 @@ export function Masa() {
         </Box>
         {operate ? (
           <Stack direction="row" spacing={1}>
-            <Button variant="outlined" onClick={() => void pull()}>
+            <Button variant="outlined" onClick={() => void pull()} disabled={!canPull}>
               Konumları çek
             </Button>
             <Button component="a" href="#gidis" variant="contained">
@@ -125,7 +130,7 @@ export function Masa() {
 
       <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", lg: "1.2fr 1fr 1fr" } }}>
         <Card>
-          <CardHeader title="Filo müsaitliği" subheader="Anlık araç durumu" />
+          <CardHeader title="Filo müsaitliği" subheader="Anlık araç durumu. Çubuğa tıklayınca araç listesi açılır." />
           <CardContent sx={{ height: 280 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={fleetChart}>
@@ -133,7 +138,16 @@ export function Masa() {
                 <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                 <YAxis allowDecimals={false} width={28} />
                 <Tooltip />
-                <Bar dataKey="value" name="Araç" radius={[8, 8, 0, 0]} fill="#1877F2" />
+                <Bar
+                  dataKey="value"
+                  name="Araç"
+                  radius={[8, 8, 0, 0]}
+                  fill="#1877F2"
+                  cursor="pointer"
+                  onClick={(data: { name?: string }) => {
+                    if (data.name) window.location.hash = `araclar/${encodeURIComponent(data.name)}`;
+                  }}
+                />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -179,10 +193,28 @@ export function Masa() {
 
       <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", lg: "1.4fr 1fr" } }}>
         <Card>
-          <CardHeader title="Canlı harita" subheader="Son bilinen araç konumları" />
-          <CardContent>
-            <DeskMap vehicles={vehicles} load={null} />
-          </CardContent>
+          <CardHeader title="Canlı harita" subheader={`${live.link} · ${live.vehicles.length} araç. Araca tıklayınca detay açılır.`} />
+          <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1.5, px: 2, pb: 1 }}>
+            {(Object.keys(VEHICLE_STATE_LABEL) as VehicleState[]).map((state) => (
+              <Stack key={state} direction="row" spacing={0.5} sx={{ alignItems: "center", opacity: live.counts.get(state) ? 1 : 0.45 }}>
+                <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: VEHICLE_STATE_COLOR[state] }} />
+                <Typography variant="caption">
+                  {VEHICLE_STATE_LABEL[state]} {live.counts.get(state) ?? 0}
+                </Typography>
+              </Stack>
+            ))}
+          </Stack>
+          <Box sx={{ display: "flex", flexDirection: "column", height: { xs: 340, lg: 420 } }}>
+            <FleetMap
+              vehicles={live.vehicles}
+              selectedId={null}
+              states={live.states}
+              tick={live.tick}
+              onSelect={(id) => {
+                window.location.hash = `takip/${id}`;
+              }}
+            />
+          </Box>
         </Card>
         <Stack spacing={2}>
           <Card>

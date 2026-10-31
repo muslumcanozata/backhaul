@@ -7,6 +7,7 @@ import CardHeader from "@mui/material/CardHeader";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
 import Stack from "@mui/material/Stack";
+import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { api } from "../api";
@@ -24,10 +25,17 @@ export function Ayarlar() {
   const [warningLead, setWarningLead] = useState("30");
   const [approval, setApproval] = useState(false);
   const [estimatedAuto, setEstimatedAuto] = useState(false);
+  const [arventoEnabled, setArventoEnabled] = useState(false);
+  const [seyirEnabled, setSeyirEnabled] = useState(false);
+  const [baseIl, setBaseIl] = useState("");
+  const [baseIlce, setBaseIlce] = useState("");
+  const [tollEnabled, setTollEnabled] = useState(false);
   const [saved, setSaved] = useState("");
   const [username, setUsername] = useState("");
   const [pin1, setPin1] = useState("");
   const [pin2, setPin2] = useState("");
+  const [seyirUser, setSeyirUser] = useState("");
+  const [seyirPassword, setSeyirPassword] = useState("");
   const [usercode, setUsercode] = useState("");
   const [smsPassword, setSmsPassword] = useState("");
   const [smsHeader, setSmsHeader] = useState("");
@@ -41,6 +49,11 @@ export function Ayarlar() {
     setWarningLead(String(settings.tacho_warning_min ?? 30));
     setApproval(settings.return_approval);
     setEstimatedAuto(settings.auto_assign_estimated);
+    setArventoEnabled(settings.arvento_enabled);
+    setSeyirEnabled(settings.seyir_enabled);
+    setBaseIl(settings.home_base_il ?? "");
+    setBaseIlce(settings.home_base_ilce ?? "");
+    setTollEnabled(settings.toll_enabled);
   }, [settings]);
 
   function toggle(type: string) {
@@ -62,6 +75,11 @@ export function Ayarlar() {
           ...(warningLead ? { tacho_warning_min: Number(warningLead) } : {}),
           return_approval: approval,
           auto_assign_estimated: estimatedAuto,
+          arvento_enabled: arventoEnabled,
+          seyir_enabled: seyirEnabled,
+          home_base_il: baseIl,
+          home_base_ilce: baseIlce,
+          toll_enabled: tollEnabled,
         }),
       });
       setSaved(
@@ -98,34 +116,86 @@ export function Ayarlar() {
           <TextField label="Ön uyarı payı (dakika)" value={warningLead} onChange={(event) => setWarningLead(event.target.value)} helperText="Yasal paket 540 dakika ve 30 dakika pay. Firma bu değerleri küçültebilir." slotProps={{ htmlInput: { inputMode: "numeric" } }} />
           <FormControlLabel control={<Checkbox checked={approval} onChange={() => setApproval((value) => !value)} />} label="Dönüş atamasında onay iste" />
           <FormControlLabel control={<Checkbox checked={estimatedAuto} onChange={() => setEstimatedAuto((value) => !value)} />} label="Tahmini takografla otomatik dönüş" />
+          <TextField label="Üs noktası: il" value={baseIl} onChange={(event) => setBaseIl(event.target.value)} helperText="Dönüş zinciri buraya dönüşle biter. Boş bırakılırsa son boşaltmada biter." />
+          <TextField label="Üs noktası: ilçe" value={baseIlce} onChange={(event) => setBaseIlce(event.target.value)} helperText="Boşsa Merkez kabul edilir." />
+          <FormControlLabel
+            control={<Switch checked={tollEnabled} onChange={(_, checked) => setTollEnabled(checked)} />}
+            label="Köprü ve otoyol ücretini Routes API'den hesapla"
+          />
+          <Typography variant="caption" color="text.secondary">
+            Açıkken Routes istekleri daha pahalı SKU'ya geçer. Ücret gelmeyen yük otomatik atanmaz. Binek araç fiyatı döner, ağır vasıta farklı olabilir.
+          </Typography>
           <Button type="submit" variant="contained">
             Kaydet
           </Button>
           {saved ? <Alert severity="success">{saved}</Alert> : null}
-          <Typography variant="h6">{settings?.arvento_configured ? "Arvento kaydı var" : "Arvento kaydı eksik"}</Typography>
-          <TextField label="Arvento kullanıcı" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="off" />
-          <TextField label="PIN1" type="password" value={pin1} onChange={(event) => setPin1(event.target.value)} autoComplete="new-password" />
-          <TextField label="PIN2" type="password" value={pin2} onChange={(event) => setPin2(event.target.value)} autoComplete="new-password" />
-          <Button
-            type="button"
-            variant="outlined"
-            onClick={async () => {
-              notice("");
-              setSaved("");
-              try {
-                await api("/settings/arvento", token, { method: "PUT", body: JSON.stringify({ username, pin1, pin2 }) });
-                setUsername("");
-                setPin1("");
-                setPin2("");
-                setSaved("Arvento kaydı yazıldı");
-                await reload();
-              } catch (err) {
-                notice(err instanceof Error ? err.message : "Arvento kaydı yazılamadı");
-              }
-            }}
-          >
-            Arvento kaydet
-          </Button>
+
+          <Typography variant="h6">Konum sağlayıcıları</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Her sağlayıcı bu firmaya özeldir; ikisi birden açık olabilir. Kapalıyken sırlar saklı kalsa bile istek atılmaz.
+          </Typography>
+          <FormControlLabel
+            control={<Switch checked={arventoEnabled} onChange={(_, checked) => setArventoEnabled(checked)} />}
+            label={settings?.arvento_configured ? "Arvento açık (kayıt var)" : "Arvento açık (kayıt eksik)"}
+          />
+          {arventoEnabled ? (
+            <Stack spacing={1.5}>
+              <TextField label="Arvento kullanıcı" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="off" />
+              <TextField label="PIN1" type="password" value={pin1} onChange={(event) => setPin1(event.target.value)} autoComplete="new-password" />
+              <TextField label="PIN2" type="password" value={pin2} onChange={(event) => setPin2(event.target.value)} autoComplete="new-password" />
+              <Button
+                type="button"
+                variant="outlined"
+                onClick={async () => {
+                  notice("");
+                  setSaved("");
+                  try {
+                    await api("/settings/arvento", token, { method: "PUT", body: JSON.stringify({ username, pin1, pin2 }) });
+                    setUsername("");
+                    setPin1("");
+                    setPin2("");
+                    setSaved("Arvento kaydı yazıldı");
+                    await reload();
+                  } catch (err) {
+                    notice(err instanceof Error ? err.message : "Arvento kaydı yazılamadı");
+                  }
+                }}
+              >
+                Arvento kaydet
+              </Button>
+            </Stack>
+          ) : null}
+
+          <FormControlLabel
+            control={<Switch checked={seyirEnabled} onChange={(_, checked) => setSeyirEnabled(checked)} />}
+            label={settings?.seyir_configured ? "Seyir açık (kayıt var)" : "Seyir açık (kayıt eksik)"}
+          />
+          {seyirEnabled ? (
+            <Stack spacing={1.5}>
+              <TextField label="Seyir kullanıcı adı" value={seyirUser} onChange={(event) => setSeyirUser(event.target.value)} autoComplete="off" />
+              <TextField label="Seyir şifre" type="password" value={seyirPassword} onChange={(event) => setSeyirPassword(event.target.value)} autoComplete="new-password" />
+              <Button
+                type="button"
+                variant="outlined"
+                onClick={async () => {
+                  notice("");
+                  setSaved("");
+                  try {
+                    await api("/settings/seyir", token, { method: "PUT", body: JSON.stringify({ username: seyirUser, password: seyirPassword }) });
+                    setSeyirUser("");
+                    setSeyirPassword("");
+                    setSaved("Seyir kaydı yazıldı");
+                    await reload();
+                  } catch (err) {
+                    notice(err instanceof Error ? err.message : "Seyir kaydı yazılamadı");
+                  }
+                }}
+              >
+                Seyir kaydet
+              </Button>
+            </Stack>
+          ) : null}
+
           <Typography variant="h6">{settings?.netgsm_configured ? "Netgsm kaydı var" : "Netgsm kaydı eksik"}</Typography>
           <TextField label="Netgsm kullanıcı kodu" value={usercode} onChange={(event) => setUsercode(event.target.value)} autoComplete="off" />
           <TextField label="Netgsm şifre" type="password" value={smsPassword} onChange={(event) => setSmsPassword(event.target.value)} autoComplete="new-password" />

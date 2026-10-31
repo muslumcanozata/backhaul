@@ -63,15 +63,35 @@ def road_leg(
     destination: tuple[Decimal, Decimal],
     api_key: str | None,
     opener=urllib.request.urlopen,
+    tolls: bool = False,
 ) -> tuple[Decimal, int, str]:
     cache_key = "|".join(_cell(value) for value in (*origin, *destination))
     cached = db.get(RoadCache, cache_key)
     if cached is not None:
-        return cached.kilometers, cached.seconds, cached.quality
-    kilometers, seconds, quality = _measure(origin, destination, api_key, opener)
-    db.add(RoadCache(cache_key=cache_key, kilometers=kilometers, seconds=seconds, quality=quality))
+        if not (tolls and api_key and cached.quality == "google" and cached.toll_state is None):
+            return cached.kilometers, cached.seconds, cached.quality
+    measured = _measure(origin, destination, api_key, opener, tolls)
+    if cached is None:
+        cached = RoadCache(cache_key=cache_key)
+        db.add(cached)
+    cached.kilometers, cached.seconds, cached.quality = measured[0], measured[1], measured[2]
+    if measured[2] == "google" and tolls:
+        cached.toll_try, cached.toll_state = measured[3], measured[4]
     db.flush()
-    return kilometers, seconds, quality
+    return cached.kilometers, cached.seconds, cached.quality
+
+
+def cached_toll(
+    db: Session,
+    origin: tuple[Decimal, Decimal],
+    destination: tuple[Decimal, Decimal],
+) -> tuple[Decimal | None, str | None]:
+    """Önbellekteki geçiş ücreti. Durum: yok, bilinen, bilinmiyor. Hesaplanmadıysa None."""
+    cache_key = "|".join(_cell(value) for value in (*origin, *destination))
+    cached = db.get(RoadCache, cache_key)
+    if cached is None or cached.quality != "google":
+        return None, None
+    return cached.toll_try, cached.toll_state
 
 
 def _measure(
@@ -79,24 +99,33 @@ def _measure(
     destination: tuple[Decimal, Decimal],
     api_key: str | None,
     opener,
-) -> tuple[Decimal, int, str]:
+    tolls: bool = False,
+) -> tuple[Decimal, int, str, Decimal | None, str | None]:
     approximate = _haversine_km(*origin, *destination)
     seconds = max(1, int(float(approximate) / 60 * 3600))
+    fallback = (approximate, seconds, "yaklasik", None, None)
     if not api_key:
-        return approximate, seconds, "yaklasik"
+        return fallback
+    origin_point = _waypoint(origin)
+    if tolls:
+        origin_point["routeModifiers"] = {"vehicleInfo": {"emissionType": "DIESEL"}}
     body = {
-        "origins": [_waypoint(origin)],
+        "origins": [origin_point],
         "destinations": [_waypoint(destination)],
         "travelMode": "DRIVE",
         "routingPreference": "TRAFFIC_UNAWARE",
     }
+    mask = "distanceMeters,duration,condition"
+    if tolls:
+        body["extraComputations"] = ["TOLLS"]
+        mask += ",travelAdvisory.tollInfo"
     request = urllib.request.Request(
         "https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix",
         data=json.dumps(body).encode(),
         headers={
             "Content-Type": "application/json",
             "X-Goog-Api-Key": api_key,
-            "X-Goog-FieldMask": "distanceMeters,duration,condition",
+            "X-Goog-FieldMask": mask,
         },
         method="POST",
     )
@@ -104,20 +133,38 @@ def _measure(
         with opener(request, timeout=20) as response:
             payload = json.loads(response.read().decode())
     except Exception:
-        return approximate, seconds, "yaklasik"
+        return fallback
     row = payload[0] if isinstance(payload, list) and payload else payload
     if not isinstance(row, dict) or row.get("condition") not in {None, "ROUTE_EXISTS"}:
-        return approximate, seconds, "yaklasik"
+        return fallback
     meters = row.get("distanceMeters")
     if meters is None:
-        return approximate, seconds, "yaklasik"
+        return fallback
     kilometers = Decimal(str(round(float(meters) / 1000, 1)))
     duration = str(row.get("duration") or "0s").rstrip("s")
     try:
         google_seconds = int(float(duration))
     except ValueError:
         google_seconds = seconds
-    return kilometers, google_seconds, "google"
+    toll_try, toll_state = parse_toll(row) if tolls else (None, None)
+    return kilometers, google_seconds, "google", toll_try, toll_state
+
+
+def parse_toll(row: dict) -> tuple[Decimal | None, str]:
+    """Routes yanıtından geçiş ücreti. tollInfo yoksa güzergâhta ücret yok.
+    tollInfo var ama fiyat yoksa ücret bilinmiyor. TRY dışı para birimi bilinmiyor sayılır."""
+    info = (row.get("travelAdvisory") or {}).get("tollInfo")
+    if info is None:
+        return Decimal("0"), "yok"
+    prices = info.get("estimatedPrice") or []
+    if not prices:
+        return None, "bilinmiyor"
+    total = Decimal("0")
+    for money in prices:
+        if money.get("currencyCode") != "TRY":
+            return None, "bilinmiyor"
+        total += Decimal(str(money.get("units") or 0)) + Decimal(str(money.get("nanos") or 0)) / Decimal(1_000_000_000)
+    return total.quantize(Decimal("0.01")), "bilinen"
 
 
 def _waypoint(point: tuple[Decimal, Decimal]) -> dict:

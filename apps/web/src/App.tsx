@@ -120,18 +120,23 @@ function Shell({ error, onLogout }: { error: string; onLogout: () => void }) {
   const { user } = useSession();
   const pages = useMemo(() => pagesFor(user.role), [user.role]);
   const [page, setPage] = useState<Page>(pages[0]);
+  const [filter, setFilter] = useState("");
 
   useEffect(() => {
     const allowed = pagesFor(user.role);
 
-    function show(next: Page) {
+    function show(next: Page, nextFilter: string) {
       setPage(next);
-      if (window.location.hash !== `#${next}`) history.replaceState(null, "", `#${next}`);
+      setFilter(nextFilter);
+      const target = nextFilter ? `#${next}/${encodeURIComponent(nextFilter)}` : `#${next}`;
+      if (window.location.hash !== target) history.replaceState(null, "", target);
     }
 
     function fromHash() {
-      const current = window.location.hash.replace("#", "") as Page;
-      show(allowed.includes(current) ? current : allowed[0]);
+      const [name, ...rest] = window.location.hash.replace("#", "").split("/");
+      const current = name as Page;
+      const nextFilter = rest.length ? decodeURIComponent(rest.join("/")) : "";
+      show(allowed.includes(current) ? current : allowed[0], allowed.includes(current) ? nextFilter : "");
     }
 
     fromHash();
@@ -142,6 +147,7 @@ function Shell({ error, onLogout }: { error: string; onLogout: () => void }) {
   function open(next: Page) {
     window.location.hash = next;
     setPage(next);
+    setFilter("");
   }
 
   return (
@@ -152,8 +158,8 @@ function Shell({ error, onLogout }: { error: string; onLogout: () => void }) {
         {page === "masa" ? <Masa /> : null}
         {page === "gidis" ? <QueuePage direction="gidis" /> : null}
         {page === "donus" ? <QueuePage direction="donus" /> : null}
-        {page === "takip" ? <Takip /> : null}
-        {page === "araclar" ? <Araclar /> : null}
+        {page === "takip" ? <Takip initialVehicle={filter} /> : null}
+        {page === "araclar" ? <Araclar initialFilter={filter} /> : null}
         {page === "soforler" ? <Soforler /> : null}
         {page === "ayarlar" ? <Ayarlar /> : null}
         {page === "kullanicilar" ? <Kullanicilar /> : null}

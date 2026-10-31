@@ -107,8 +107,8 @@ Yalnızca firma yöneticisi. Operasyoncu ve izleyici sayfayı görmez.
 - Şirket takograf limiti. Yasal paketten büyük değer kaydedilemez.
 - Tahmini takografla otomatik dönüş bayrağı. Başlangıç kapalı.
 - Dönüş atamasında onay isteme. Başlangıç kapalı, yani atama otomatik.
-- Entegrasyon durumu: Arvento son başarılı çekim, Netgsm üçlüsü kayıtlı mı. Değer gösterilmez.
-- Sonraki sürümde e-posta uyarısı ve Seyir bağlantısı bu sayfaya eklenir.
+- Konum sağlayıcıları: Arvento ve Seyir switch’leri bağımsız (tenant). İkisi birden açık olabilir. Kapalıyken istek yok. Sır formu yalnızca açıkken; değer geri gösterilmez.
+- Entegrasyon durumu: Arvento/Seyir kayıtlı mı, Netgsm üçlüsü kayıtlı mı.
 
 ### Kullanıcılar
 

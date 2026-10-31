@@ -6,21 +6,25 @@ from sqlalchemy.orm import Session
 
 from app.deps import get_current_user, get_db, require_operation_tenant, require_writer
 from app.arvento import MissingSecret, configured, save_credentials
+import app.seyir as seyir
 from app.netgsm import MissingNetgsm, dispatch
 from app.netgsm import save_credentials as save_netgsm
 from app.release import break_locked
 from app.tacho import assert_tighter, observe, sync_alerts
+from app.telematics import enabled_providers
 from app.tracking import announce
 from app.config import Settings
 from app.deps import AppState, get_state
 from app.models import TRAILER_CATALOG, Driver, Load, TachoState, TenantSettings, User, Vehicle, VehiclePosition, VehicleStatus
 from app.phones import normalize_phone
+from app.places import find_place
 from app.schemas import (
     DriverCreate,
     DriverOut,
     PositionCreate,
     ArventoSecretIn,
     NetgsmSecretIn,
+    SeyirSecretIn,
     SettingsOut,
     SettingsPatch,
     VehicleCreate,
@@ -39,6 +43,13 @@ def _settings_out(db: Session, tenant_id: UUID, settings: Settings) -> SettingsO
         loaded_km_cost=row.loaded_km_cost,
         gps_stale_minutes=row.gps_stale_minutes,
         arvento_configured=configured(db, tenant_id, settings),
+        seyir_configured=seyir.configured(db, tenant_id, settings),
+        arvento_enabled=bool(row.arvento_enabled),
+        seyir_enabled=bool(row.seyir_enabled),
+        enabled_telematics=enabled_providers(row),
+        home_base_il=row.home_base_il,
+        home_base_ilce=row.home_base_ilce,
+        toll_enabled=bool(row.toll_enabled),
         tacho_continuous_min=row.tacho_continuous_min,
         tacho_daily_min=row.tacho_daily_min,
         tacho_extended_min=row.tacho_extended_min,
@@ -163,7 +174,21 @@ def patch_settings(
     if body.loaded_km_cost is not None:
         rerun_returns = True
         row.loaded_km_cost = body.loaded_km_cost
+    if body.home_base_il is not None or body.home_base_ilce is not None:
+        il = (body.home_base_il if body.home_base_il is not None else row.home_base_il or "").strip()
+        ilce = (body.home_base_ilce if body.home_base_ilce is not None else row.home_base_ilce or "").strip()
+        if il:
+            if find_place(il, ilce or "Merkez") is None:
+                raise HTTPException(status_code=422, detail="Üs noktası il ve ilçe katalogda yok")
+            place = find_place(il, ilce or "Merkez")
+            il, ilce = place.il, place.ilce
+        else:
+            il, ilce = None, None
+        if (il, ilce) != (row.home_base_il, row.home_base_ilce):
+            rerun_returns = True
+        row.home_base_il, row.home_base_ilce = il, ilce
     for name in (
+        "toll_enabled",
         "tacho_continuous_min",
         "tacho_daily_min",
         "tacho_extended_min",
@@ -175,10 +200,12 @@ def patch_settings(
         "stability_percent",
         "reject_negative_benefit",
         "auto_assign_estimated",
+        "arvento_enabled",
+        "seyir_enabled",
     ):
         value = getattr(body, name)
         if value is not None:
-            if name in {"return_approval", "stability_percent", "reject_negative_benefit", "auto_assign_estimated"}:
+            if name in {"return_approval", "stability_percent", "reject_negative_benefit", "auto_assign_estimated", "toll_enabled"}:
                 rerun_returns = rerun_returns or getattr(row, name) != value
             setattr(row, name, value)
     if row.tacho_extended_min < row.tacho_daily_min:
@@ -206,6 +233,21 @@ def save_arvento(
         save_credentials(db, tenant_id, state.settings, body.username, body.pin1, body.pin2)
     except MissingSecret as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    db.commit()
+    return _settings_out(db, tenant_id, state.settings)
+
+
+@router.put("/settings/seyir", response_model=SettingsOut)
+def save_seyir(
+    body: SeyirSecretIn,
+    tenant_id: UUID = Depends(require_operation_tenant),
+    user: User = Depends(require_writer),
+    db: Session = Depends(get_db),
+    state: AppState = Depends(get_state),
+) -> SettingsOut:
+    if user.role != "tenant_admin":
+        raise HTTPException(status_code=403, detail="Seyir kaydını firma yöneticisi yazar")
+    seyir.save_credentials(db, tenant_id, state.settings, body.username, body.password)
     db.commit()
     return _settings_out(db, tenant_id, state.settings)
 

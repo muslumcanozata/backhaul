@@ -185,6 +185,7 @@ def test_xlsx_row_enters_the_queue(shared_client: TestClient) -> None:
 def test_arvento_pull_matches_plate_and_hides_the_secret(shared_client: TestClient, monkeypatch) -> None:
     token = _firm(shared_client)
     vehicle_id = _vehicle(shared_client, token, "34 ABC 123", "24", "Ali Yılmaz", "5321112233", False)
+    shared_client.patch("/settings", json={"arvento_enabled": True}, headers=auth(token))
     saved = shared_client.put(
         "/settings/arvento",
         json={"username": "user-1", "pin1": "pin-1", "pin2": "pin-2"},
@@ -204,7 +205,7 @@ def test_arvento_pull_matches_plate_and_hides_the_secret(shared_client: TestClie
                 longitude=__import__("decimal").Decimal("29.000000"),
                 speed_kmh=__import__("decimal").Decimal("18"),
                 course=__import__("decimal").Decimal("90"),
-                recorded_at=datetime.now(UTC),
+                recorded_at=datetime.now(UTC) + timedelta(minutes=1),
                 odometer_km=__import__("decimal").Decimal("1002.5"),
                 driver_name="Ali Yılmaz",
                 identity_number=None,

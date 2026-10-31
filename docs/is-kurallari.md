@@ -62,6 +62,8 @@ Bir araç–yük çifti, aşağıdaki kodlardan biri oluşursa skora girmez:
 | `CAPACITY` | Yük tonajı, araç kapasitesinden büyük |
 | `TRAILER` | Yükün dorse tipi, aracın dorse tipiyle aynı değil |
 | `OVERLAP` | Aracın boşalma zamanı, yükün hazır zamanından sonra |
+| `STOP_LIMIT` | Aracın dönüşte alabileceği ardışık yük sayısı doldu |
+| `WINDOW` | Önceki yükten sonra mola ve dinlenmeyle teslim penceresi kaçıyor |
 | `WINDOW` | Yasal molalar eklenmiş varış, teslim penceresinin dışında |
 | `TACHO_DAILY` | Kalan günlük sürüş, gerekli sürüşü karşılamıyor |
 | `TACHO_WEEKLY` | Kalan haftalık sürüş yetmiyor |
@@ -164,7 +166,13 @@ Dönüş faydası Türk lirasıdır:
 fayda = navlun
       - bos_km × bos_km_maliyeti
       - dolu_km × dolu_km_maliyeti
+      - gecis_ucreti
+      - uss_km × bos_km_maliyeti
 ```
+
+`gecis_ucreti`, köprü ve otoyol bedelidir. Firma ayarında `toll_enabled` açıksa Routes API'den gelir (`TOLLS`). Kapalıyken hesaba katılmaz ve yük bundan dolayı elenmez. Açıkken Routes ücreti bilinmiyor diyen çift otomatik atamaya girmez. Sistem bilinmeyen ücreti 0 saymaz. Routes ücreti binek araç varsayımıyla verir, ağır vasıta ücreti farklı olabilir. Açık ayar, mesafe isteğini daha pahalı Google SKU'suna taşır.
+
+`uss_km`, yalnız dönüş yükü için, son boşaltmadan firmanın üs noktasına (`home_base`) olan yol mesafesidir. Üs tanımsızsa terim yoktur. Son yükün üste boşaltılması gerekmez, üsse boş dönüş maliyete girer.
 
 `bos_km`, aracın boşalma konumu ile fırsatın yükleme noktası arasındaki Google yol mesafesidir. `dolu_km`, yükleme ile boşaltma arasındaki Google yol mesafesidir. İki maliyet katsayısı firma ayarıdır. Biri bile boşsa dönüş hesabı çalışmaz ve `COST_RATES_MISSING` açılır. Sistem eksik katsayının yerine fiyat uydurmaz.
 
@@ -183,7 +191,9 @@ Gecikme formüle katılmaz. Pencere kaçıran çift zaten `WINDOW` ile elenmişt
 1. Firma için planlanabilir araçlar ve `havuz` durumundaki dönüş fırsatları alınır. Araç, boşsa şu anki konumundan, dönüşte boşalacaksa teslim noktasından aday olur.
 2. Çiftler 3. bölümdeki kurallarla elenir.
 3. Kalan çiftlerin faydası hesaplanır. Negatif fayda da aday kalır; başka yasal seçenek yoksa boş kilometre, aracı boşta tutmaktan iyi olabilir. Firma `negatif_fayda_atanmasin` açarsa negatif çiftler düşer. Başlangıç değeri kapalıdır.
-4. Her araca en fazla bir yük, her yüke en fazla bir araç veren ve fayda toplamı en yüksek eşleşme seçilir. Çözüm tam eşleştirme algoritmasıyla bulunur. Araç veya yük sayısı diğerinden az ise açıkta kalanlar havuzda veya boşta durur.
+4. Her araca bir seferde bir yük, her yüke en fazla bir araç veren ve fayda toplamı en yüksek eşleşme seçilir. Çözüm tam eşleştirme algoritmasıyla bulunur. Araç veya yük sayısı diğerinden az ise açıkta kalanlar havuzda veya boşta durur.
+
+Araçta yük varken başka yük alınmaz. Yük boşaltıldıktan sonra sıradaki yük alınır. Bir dönüşte en fazla `max_stops_return` (3) ardışık yük alınır, aşan çift `STOP_LIMIT` ile elenir. Seçimde, ilk yükten sonra alınabilecek devam yükleri de değer olarak görülür (yaklaşık mesafe, Routes çağrısı yok). Yalnız ilk yük atanır. Devam yükleri havuzda kalır ve önerilen zincir `chain_note` olarak kartta görünür. İlk yük kabul edilip kilitlenince sıradaki yük, aynı araca, bu hesapla atanabilir ve SMS'i o zaman gider. Devam yükü, önceki yükün boşaltma saati sonrasında hazır olmalı, takograf molası ve günlük dinlenme eklendikten sonra teslim penceresine yetişmelidir (`WINDOW`).
 5. Kilitli atamalar 7. bölümdeki kurala göre çözümün dışında tutulur, kalan serbest araç ve yüklerle hesap tekrarlanır.
 
 Hesap şu olaylarda çalışır: havuza fırsat girmesi, fırsatın iptali, aracın teslimle boşalması, aracın planlanabilir hale gelmesi, boş/dolu km maliyetinin veya dönüş eşleşme ayarının değişmesi, operasyoncunun yeniden hesap istemesi. Konum her sinyalde hesabı tetiklemez.
