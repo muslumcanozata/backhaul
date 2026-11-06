@@ -114,7 +114,7 @@ Günlük 10 saatlik uzatma, ancak o hafta ikiden az uzatma kullanıldıysa ve ş
 ### Planın süre hesabı
 
 1. Çıkış zamanı, yükün hazır zamanı ile aracın boşalma zamanının geç olanıdır.
-2. Boş kilometre ve dolu kilometre Google Routes API rota matrisinden, trafiksiz sürüş süresiyle süreye çevrilir.
+2. Boş kilometre ve dolu kilometre Google Routes API rota matrisinden, trafiksiz sürüş süresiyle süreye çevrilir. Cevap `road_cache`'te tutulur. Canlı araç konumu 5 km hücreye yuvarlanır; yük ve üs noktaları hassas kalır. Aynı hücre tekrar sorulmaz. Aynı planlama turunda bacak bir kez ölçülür. Çözücü yalnızca yük, ayar veya 5 km hücre değişince çalışır. Kilitlemede boş bacak canlı konumla bir kez hassas doğrulanır. Google mesafe 90 gün, geçiş ücreti 30 gün sonra yenilenir. Yaklaşık kayıt artan aralıkla yeniden denenir. Günlük tavan 333 Routes isteğidir (aylık ücretsiz Essentials kota 10.000 / 30); üstü operatör onayıyla 333'er açılır. Tavan dolunca yeni bacak kuş uçuşu tahminle hesaplanır ve otomatik atamaya girmez.
 3. Sürüş 4,5 saati dolduruyorsa süreye 45 dakika mola eklenir. Yarım kalmış 15 dakikalık ilk parça varsa yalnızca kalan 30 dakika eklenir.
 4. Eklenen sürüş, günlük, haftalık ve iki haftalık kalan hakları aşarsa çift elenir. Günlük 9 saat dolmuş ve uzatma hakkı varsa 10 saate kadar devam edilir.
 5. Varış, teslim penceresinin içindeyse çift skorlanır. Değilse `WINDOW` ile elenir.
@@ -158,7 +158,7 @@ Başlangıç ön-uyarı payı 30 dakikadır. Firma bu payı büyütebilir, sıf�
 
 ## 6. Fayda
 
-Dönüş havuzundaki her kayıt bir fırsattır. Navlunu girişte bellidir. Amaç, firmanın o hesaptaki tüm çiftlerinin fayda toplamını en büyük yapmaktır. Tek fırsatın kendi en iyi aracını kapması, başka bir fırsatı aracsız bırakıp toplamı düşürüyorsa seçilmez.
+Dönüş Planlamandaki her kayıt bir fırsattır. Navlunu girişte bellidir. Amaç, firmanın o hesaptaki tüm çiftlerinin fayda toplamını en büyük yapmaktır. Tek fırsatın kendi en iyi aracını kapması, başka bir fırsatı aracsız bırakıp toplamı düşürüyorsa seçilmez.
 
 Dönüş faydası Türk lirasıdır:
 
@@ -182,7 +182,7 @@ Gidiş sıralamasında navlun varsa aynı formül kullanılır. Gidiş navlunu b
 siralama = dolu_km - bos_km × 1,5
 ```
 
-Bir boş kilometre, 1,5 dolu kilometreden pahalı sayılır. Bu yedek değer dönüş havuzuna girmez.
+Bir boş kilometre, 1,5 dolu kilometreden pahalı sayılır. Bu yedek değer Dönüş Planlamana girmez.
 
 Gecikme formüle katılmaz. Pencere kaçıran çift zaten `WINDOW` ile elenmiştir.
 
@@ -193,7 +193,7 @@ Gecikme formüle katılmaz. Pencere kaçıran çift zaten `WINDOW` ile elenmişt
 3. Kalan çiftlerin faydası hesaplanır. Negatif fayda da aday kalır; başka yasal seçenek yoksa boş kilometre, aracı boşta tutmaktan iyi olabilir. Firma `negatif_fayda_atanmasin` açarsa negatif çiftler düşer. Başlangıç değeri kapalıdır.
 4. Her araca bir seferde bir yük, her yüke en fazla bir araç veren ve fayda toplamı en yüksek eşleşme seçilir. Çözüm tam eşleştirme algoritmasıyla bulunur. Araç veya yük sayısı diğerinden az ise açıkta kalanlar havuzda veya boşta durur.
 
-Araçta yük varken başka yük alınmaz. Yük boşaltıldıktan sonra sıradaki yük alınır. Bir dönüşte en fazla `max_stops_return` (3) ardışık yük alınır, aşan çift `STOP_LIMIT` ile elenir. Seçimde, ilk yükten sonra alınabilecek devam yükleri de değer olarak görülür (yaklaşık mesafe, Routes çağrısı yok). Yalnız ilk yük atanır. Devam yükleri havuzda kalır ve önerilen zincir `chain_note` olarak kartta görünür. İlk yük kabul edilip kilitlenince sıradaki yük, aynı araca, bu hesapla atanabilir ve SMS'i o zaman gider. Devam yükü, önceki yükün boşaltma saati sonrasında hazır olmalı, takograf molası ve günlük dinlenme eklendikten sonra teslim penceresine yetişmelidir (`WINDOW`).
+Araçta yük varken başka yük alınmaz. Yük boşaltıldıktan sonra sıradaki yük alınır. Bir dönüşte en fazla `max_stops_return` (3) ardışık yük alınır, aşan çift `STOP_LIMIT` ile elenir. Seçimde, ilk yükten sonra alınabilecek devam yükleri de değer olarak görülür (yaklaşık mesafe, Routes çağrısı yok). Yalnız ilk yük atanır. Devam yükleri havuzda kalır ve önerilen zincir `chain_note` olarak kartta görünür. İlk yükü operatör kilitleyince sıradaki yük, aynı araca, bu hesapla atanabilir ve SMS'i o zaman gider. Sürücü cevabı kilit şartı değildir. Devam yükü, önceki yükün boşaltma saati sonrasında hazır olmalı, takograf molası ve günlük dinlenme eklendikten sonra teslim penceresine yetişmelidir (`WINDOW`).
 5. Kilitli atamalar 7. bölümdeki kurala göre çözümün dışında tutulur, kalan serbest araç ve yüklerle hesap tekrarlanır.
 
 Hesap şu olaylarda çalışır: havuza fırsat girmesi, fırsatın iptali, aracın teslimle boşalması, aracın planlanabilir hale gelmesi, boş/dolu km maliyetinin veya dönüş eşleşme ayarının değişmesi, operasyoncunun yeniden hesap istemesi. Konum her sinyalde hesabı tetiklemez.
@@ -253,24 +253,24 @@ SMS yalnızca şu üç olayda yazılır:
 
 Tahmini varışın kayması, mola dakikasının yeniden hesaplanması ve fayda kartının yenilenmesi SMS üretmez.
 
-Şoförün telefonu 10 haneli `5` ile başlayan numaraya çözülemiyorsa kuyruğa satır yazılmaz, `SMS_NO_PHONE` açılır, atama `atandi` kalır ve kilitlenmez.
+Şoförün telefonu 10 haneli `5` ile başlayan numaraya çözülemiyorsa kuyruğa satır yazılmaz, `SMS_NO_PHONE` açılır. Operatör yine de kilitleyebilir; sefer SMS olmadan da kesinleşir.
 
 Kuyruk durumları: `bekliyor`, `kabul`, `iletildi`, `iletilemedi`, `dustu`.
 
-Netgsm `00` ve bir iş kimliği dönerse satır `kabul` olur ve atama kilitlenir. Zaman aşımı ve 5xx üç kez, artan aralıkla yeniden denenir. Kimlik hatası, onaysız başlık ve hatalı numara yeniden denenmez. Satır `iletilemedi`ye ancak iletim raporu ulaşmayınca geçer. Rapor gecikmesi kilidi bekletmez.
+Netgsm `00` ve bir iş kimliği dönerse satır `kabul` olur. Bu kilit üretmez. Kilit operatör atayınca, onaylayınca veya Kilitle deyince konur. Zaman aşımı ve 5xx üç kez, artan aralıkla yeniden denenir. Kimlik hatası, onaysız başlık ve hatalı numara yeniden denenmez. Satır `iletilemedi`ye ancak iletim raporu ulaşmayınca geçer.
 
 Aynı atama kimliği ve aynı olay kodu ikinci satır açmaz. Atama, satır `bekliyor` iken değişirse satır `dustu` olur ve Netgsm’e gitmez.
 
 Metin Türkçe karakter taşır. `encoding` değeri `TR` olur. Şablonlar:
 
 ```text
-{firma} ATAMA {yon} {plaka} Ref {referans} Yukleme {yukleme_il}/{yukleme_ilce} {hazir} Bosaltma {bosaltma_il}/{bosaltma_ilce} Teslim {teslim_bas}-{teslim_bit}
+{firma} ATAMA {yon} {plaka} Ref {referans} Yukleme {yukleme_il}/{yukleme_ilce} {hazir} Bosaltma {bosaltma_il}/{bosaltma_ilce} Teslim {teslim_bas}-{teslim_bit} Harita {maps_url}
 
-{firma} GUNCELLEME {yon} {plaka} Ref {referans} Yukleme {yukleme_il}/{yukleme_ilce} {hazir} Bosaltma {bosaltma_il}/{bosaltma_ilce} Teslim {teslim_bas}-{teslim_bit}
+{firma} GUNCELLEME {yon} {plaka} Ref {referans} Yukleme {yukleme_il}/{yukleme_ilce} {hazir} Bosaltma {bosaltma_il}/{bosaltma_ilce} Teslim {teslim_bas}-{teslim_bit} Harita {maps_url}
 
 {firma} IPTAL {plaka} Ref {referans} Bu sefer iptal edildi.
 ```
 
-Saatler `GG.AA SS:dd` ve Türkiye saatidir. Açık adres ve koordinat mesaja girmez. Bir mesaj birden fazla SMS parçasına bölünebilir. Parça sayısı gönderim kaydında durur.
+Saatler `GG.AA SS:dd` ve Türkiye saatidir. Açık adres metne yazılmaz; varış için Google Maps linki eklenir (`https://maps.google.com/?q=lat,lng`, koordinat yoksa il/ilçe araması). Bir mesaj birden fazla SMS parçasına bölünebilir. Parça sayısı gönderim kaydında durur.
 
 Gönderen, SMS’in ait olduğu firmanın kendi Netgsm hesabıdır. Başlık o firmanın onaylı `msgheader` değeridir. Paylaşılan podda kullanıcı kodu, şifre ve başlık firmanın şifreli kaydından okunur. Ayrı podda aynı üç değer, o podun `NETGSM_USERCODE`, `NETGSM_PASSWORD` ve `NETGSM_MSGHEADER` değişkenleridir ve yalnızca `TENANT_ID` ile eşleşen firma için geçerlidir. Firmanın üçlüsünden biri boşsa o firmanın SMS’i gitmez. Diğer firmaların kuyruğu durmaz. Şoför firmayı hem başlıktan hem metnin ilk kelimesinden ayırır. `iysfilter` kapalıdır. Bu kuyruk pazarlama listesi değildir.

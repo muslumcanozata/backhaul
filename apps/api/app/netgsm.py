@@ -1,8 +1,9 @@
 import base64
 import json
 import math
+import urllib.parse
 import urllib.request
-from datetime import datetime
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
@@ -78,6 +79,7 @@ def queue_event(db: Session, tenant_id, load: Load, vehicle: Vehicle, event: str
         phone=phone,
         body=body,
         parts=max(1, math.ceil(len(body) / 155)),
+        created_at=datetime.now(UTC),
     )
     db.add(row)
     db.flush()
@@ -114,9 +116,6 @@ def dispatch(db: Session, tenant_id, settings: Settings, opener=urllib.request.u
         row.status = "kabul"
         row.job_id = job_id
         row.last_error = None
-        load = db.get(Load, row.load_id)
-        if load is not None and row.event == "atama":
-            load.locked = True
         sent += 1
     return sent
 
@@ -200,8 +199,17 @@ def render(firm: str, load: Load, plate: str, event: str) -> str:
         f"{firm} {label} {direction} {plate} Ref {load.reference} "
         f"Yukleme {load.pickup_il}/{load.pickup_ilce} {_clock(load.ready_at)} "
         f"Bosaltma {load.drop_il}/{load.drop_ilce} "
-        f"Teslim {_clock(load.deliver_start)}-{_clock(load.deliver_end)}"
+        f"Teslim {_clock(load.deliver_start)}-{_clock(load.deliver_end)} "
+        f"Harita {_maps_url(load)}"
     )
+
+
+def _maps_url(load: Load) -> str:
+    """Varış noktası; koordinat varsa pin, yoksa il/ilçe araması."""
+    if load.drop_lat is not None and load.drop_lng is not None:
+        return f"https://maps.google.com/?q={load.drop_lat},{load.drop_lng}"
+    query = urllib.parse.quote(f"{load.drop_il} {load.drop_ilce}")
+    return f"https://maps.google.com/?q={query}"
 
 
 def _clock(value: datetime) -> str:

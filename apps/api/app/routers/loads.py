@@ -10,7 +10,7 @@ from app.imports import ImportFileError, create_from_form, export_workbook, impo
 from app.models import Load, SmsOutbox, TachoState, TenantSettings, User, Vehicle
 from app.netgsm import dispatch, drop_pending, poll_reports, queue_event
 from app.places import find_place
-from app.planning import assignment_for, candidates
+from app.planning import assignment_for, candidates, confirm_lock
 from app.returns import solve_returns
 from app.schemas import AssignIn, CandidateOut, ImportOut, LoadCreate, LoadOut, LoadRevise, PullOut
 from app.tacho import PACK, limits_from
@@ -37,6 +37,7 @@ def _load_out(db: Session, load: Load, explain: bool = False, api_key: str | Non
             "deliver_start": _as_utc(load.deliver_start),
             "deliver_end": _as_utc(load.deliver_end),
             "calculated_at": _as_utc(load.calculated_at) if load.calculated_at else None,
+            "delivered_at": _as_utc(load.delivered_at) if load.delivered_at else None,
             "sms_status": sms.status if sms else None,
             "sms_job_id": sms.job_id if sms else None,
             "rule_pack": PACK,
@@ -92,6 +93,17 @@ def _alternatives(db: Session, settings: TenantSettings | None, load: Load, api_
         if len(found) == 3:
             break
     return found
+
+
+def _apply_lock(db: Session, tenant_id, load: Load, app_settings) -> None:
+    if load.vehicle_id is None or load.status not in {"atandi", "onerildi", "yolda"}:
+        raise HTTPException(status_code=409, detail="LOAD_NOT_READY")
+    if load.status == "onerildi":
+        load.status = "atandi"
+    load.locked = True
+    from app.routers.fleet import _settings
+
+    confirm_lock(db, _settings(db, tenant_id), load, app_settings.google_maps_server_key)
 
 
 def _apply_revise(load: Load, body: LoadRevise) -> bool:
@@ -298,6 +310,7 @@ def assign_load(
             counter.extensions_used += 1
     queue_event(db, tenant_id, load, vehicle, "atama")
     dispatch(db, tenant_id, state.settings)
+    _apply_lock(db, tenant_id, load, state.settings)
     db.commit()
     db.refresh(load)
     return _load_out(db, load)
@@ -373,6 +386,31 @@ def approve_load(
     if vehicle is not None:
         queue_event(db, tenant_id, load, vehicle, "atama")
         dispatch(db, tenant_id, state.settings)
+    _apply_lock(db, tenant_id, load, state.settings)
+    db.commit()
+    db.refresh(load)
+    return _load_out(db, load)
+
+
+@router.post("/loads/{load_id}/lock", response_model=LoadOut)
+def lock_load(
+    load_id: UUID,
+    tenant_id: UUID = Depends(require_operation_tenant),
+    _: User = Depends(require_writer),
+    db: Session = Depends(get_db),
+    state: AppState = Depends(get_state),
+) -> LoadOut:
+    load = _load(db, tenant_id, load_id)
+    _apply_lock(db, tenant_id, load, state.settings)
+    vehicle = db.get(Vehicle, load.vehicle_id) if load.vehicle_id else None
+    sent = (
+        db.query(SmsOutbox.id)
+        .filter(SmsOutbox.load_id == load.id, SmsOutbox.event == "atama", SmsOutbox.status.in_(("bekliyor", "kabul")))
+        .first()
+    )
+    if vehicle is not None and sent is None:
+        queue_event(db, tenant_id, load, vehicle, "atama")
+        dispatch(db, tenant_id, state.settings)
     db.commit()
     db.refresh(load)
     return _load_out(db, load)
@@ -390,6 +428,7 @@ def deliver_load(
     if load.status not in {"atandi", "yolda"}:
         raise HTTPException(status_code=409, detail="LOAD_NOT_READY")
     load.status = "teslim"
+    load.delivered_at = datetime.now(UTC)
     from app.routers.fleet import _settings
 
     solve_returns(db, tenant_id, _settings(db, tenant_id), state.settings.google_maps_server_key, state.settings)
@@ -446,7 +485,7 @@ def solve_pool(
 ) -> dict:
     from app.routers.fleet import _settings
 
-    count = solve_returns(db, tenant_id, _settings(db, tenant_id), state.settings.google_maps_server_key, state.settings)
+    count = solve_returns(db, tenant_id, _settings(db, tenant_id), state.settings.google_maps_server_key, state.settings, force=True)
     return {"assigned": count}
 
 
@@ -469,7 +508,7 @@ def pull_telematics(
     if hard and updated == 0 and all(item.error for item in results):
         raise HTTPException(status_code=502 if any("cevap" in (item.error or "") for item in hard) else 409, detail=hard[0].error)
     dispatch(db, tenant_id, state.settings)
-    db.commit()
+    solve_returns(db, tenant_id, settings_row, state.settings.google_maps_server_key, state.settings)
     return PullOut(updated=updated, unmatched=unmatched)
 
 

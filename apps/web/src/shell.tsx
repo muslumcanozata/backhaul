@@ -1,5 +1,5 @@
 import { ReactNode, useState } from "react";
-import { ArrowCircleDownIcon, ArrowCircleUpIcon, BuildingsIcon, GearSixIcon, Icon, ListIcon, MapTrifoldIcon, SquaresFourIcon, SteeringWheelIcon, TruckIcon, UsersThreeIcon } from "@phosphor-icons/react";
+import { ArrowCircleDownIcon, ArrowCircleUpIcon, BuildingsIcon, ChartBarIcon, ClockCountdownIcon, GearSixIcon, Icon, ListIcon, MapTrifoldIcon, SquaresFourIcon, SteeringWheelIcon, TruckIcon, UsersThreeIcon } from "@phosphor-icons/react";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
@@ -7,6 +7,7 @@ import IconButton from "@mui/material/IconButton";
 import ListItemButton from "@mui/material/ListItemButton";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
+import { BrandLogo } from "./brand";
 import { PAGE_LABEL, ROLE_LABEL } from "./labels";
 import { AlertBell } from "./pages/AlertBell";
 import { drawer } from "./theme";
@@ -20,6 +21,8 @@ const ICONS: Record<Page, Icon> = {
   takip: MapTrifoldIcon,
   araclar: TruckIcon,
   soforler: SteeringWheelIcon,
+  takograf: ClockCountdownIcon,
+  raporlar: ChartBarIcon,
   ayarlar: GearSixIcon,
   kullanicilar: UsersThreeIcon,
 };
@@ -128,11 +131,9 @@ function NavBody({
         px: 2.5,
       }}
     >
-      <Stack spacing={0.25} sx={{ px: 1, mb: 2 }}>
-        <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: -0.2 }}>
-          Backhaul
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
+      <Stack spacing={0.5} sx={{ px: 1, mb: 2.5 }}>
+        <BrandLogo size={32} />
+        <Typography variant="caption" color="text.secondary" sx={{ pl: 0.25 }}>
           {user.role === "platform_admin" ? "Sicil" : "Sefer masası"}
         </Typography>
       </Stack>
@@ -184,14 +185,40 @@ function NavButton({ item, label, active, onClick }: { item: Page | null; label?
 
 export function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <Box sx={{ minHeight: "100%", bgcolor: "background.default" }}>
-      <Stack sx={{ minHeight: "100%" }}>
-        <Box sx={{ px: 3, pt: 3 }}>
-          <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: -0.2 }}>
-            Backhaul
-          </Typography>
+    <Box
+      sx={{
+        position: "relative",
+        minHeight: "100%",
+        bgcolor: "background.default",
+        "&::before": {
+          content: '""',
+          position: "absolute",
+          inset: 0,
+          zIndex: 0,
+          opacity: 0.28,
+          backgroundImage: "url(/auth-overlay.svg)",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          pointerEvents: "none",
+        },
+      }}
+    >
+      <Stack sx={{ position: "relative", zIndex: 1, minHeight: "100%" }}>
+        <Box sx={{ px: { xs: 2.5, sm: 3 }, pt: { xs: 2.5, sm: 3 } }}>
+          <BrandLogo size={36} />
         </Box>
-        <Box sx={{ display: "flex", flex: "1 1 auto", alignItems: "center", justifyContent: "center", p: { xs: 2, sm: 3 }, pb: 10 }}>
+        <Box
+          sx={{
+            display: "flex",
+            flex: "1 1 auto",
+            alignItems: "center",
+            justifyContent: "center",
+            px: { xs: 2, sm: 3 },
+            py: { xs: 4, md: 10 },
+            pb: { xs: 8, md: 10 },
+          }}
+        >
           <Box sx={{ width: "100%", maxWidth: 420 }}>{children}</Box>
         </Box>
       </Stack>

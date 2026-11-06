@@ -9,9 +9,10 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.crypto import open_secret, seal
+from app.dossier import bind_driver, parse_fuel_fields, record_fuel_sample
 from app.models import Driver, TachoState, TenantSecret, TenantSettings, Vehicle, VehiclePosition
 from app.places import fold
-from app.tacho import sync_alerts
+from app.tacho import record_sample, sync_alerts
 from app.tracking import announce
 
 SEYIR_URL = "https://ws.seyirmobil.com/LocationService.asmx"
@@ -38,6 +39,8 @@ class Packet:
     odometer_km: Decimal | None
     driver_name: str | None
     identity_number: str | None
+    fuel_level_pct: Decimal | None = None
+    fuel_level_liters: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -128,6 +131,7 @@ def parse_packets(root: ET.Element) -> list[Packet]:
         recorded = _when(fields.get("data_time"))
         if latitude is None or longitude is None or recorded is None:
             continue
+        fuel_pct, fuel_liters = parse_fuel_fields(fields)
         packets.append(
             Packet(
                 node=fields.get("device_id") or None,
@@ -140,6 +144,8 @@ def parse_packets(root: ET.Element) -> list[Packet]:
                 odometer_km=_decimal(fields.get("total_km")),
                 driver_name=fields.get("driver") or None,
                 identity_number=fields.get("driver_key") or None,
+                fuel_level_pct=fuel_pct,
+                fuel_level_liters=fuel_liters,
             )
         )
     return packets
@@ -207,6 +213,14 @@ def apply_packets(db: Session, tenant_id, packets: list[Packet]) -> tuple[int, l
             )
         )
         db.flush()
+        record_fuel_sample(
+            db,
+            vehicle,
+            recorded_at=packet.recorded_at,
+            level_pct=packet.fuel_level_pct,
+            level_liters=packet.fuel_level_liters,
+            odometer_km=packet.odometer_km,
+        )
         _match_driver(db, vehicle, drivers, packet)
         settings = db.get(TenantSettings, tenant_id)
         if settings is not None:
@@ -262,6 +276,7 @@ def apply_tacho(db: Session, tenant_id, packets: list[TachoPacket], settings: Te
         state.fortnight_min = max(0, packet.total_double_weekly_drive or 0)
         state.continuous_min = _used(settings.tacho_continuous_min, remaining_continuous)
         state.extensions_used = _used(settings.tacho_extensions, packet.remaining_long_drive_count)
+        record_sample(db, state, packet.recorded_at)
         updated += 1
         vehicle = next((item for item in vehicles if item.driver_id == driver.id), None)
         if vehicle is not None:
@@ -290,9 +305,8 @@ def _match_driver(db: Session, vehicle: Vehicle, drivers: list[Driver], packet: 
         return
     previous = db.query(Vehicle).filter(Vehicle.driver_id == chosen.id, Vehicle.id != vehicle.id).one_or_none()
     if previous is not None:
-        previous.driver_id = None
-        db.flush()
-    vehicle.driver_id = chosen.id
+        bind_driver(db, previous, None, source="seyir", at=packet.recorded_at)
+    bind_driver(db, vehicle, chosen.id, source="seyir", at=packet.recorded_at)
 
 
 def _post(url: str, method: str, username: str, password: str, opener) -> bytes:

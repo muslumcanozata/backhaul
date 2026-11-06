@@ -89,7 +89,7 @@ def test_company_daily_limit_above_the_pack_is_rejected(shared_client: TestClien
     assert shared_client.get("/settings", headers=auth(token)).json()["tacho_daily_min"] == 540
 
 
-def test_open_trip_that_no_longer_fits_raises_an_alert_and_stays_assigned(shared_client: TestClient) -> None:
+def test_open_trip_that_no_longer_fits_breaks_the_operator_lock(shared_client: TestClient) -> None:
     token = _firm(shared_client)
     vehicle_id = _vehicle(shared_client, token, "34 ABC 123", "25", "Ali Yılmaz", "5321112233", True)
     imported = shared_client.post("/loads/import", files=_csv(_line("G-1")), headers=auth(token))
@@ -112,4 +112,7 @@ def test_open_trip_that_no_longer_fits_raises_an_alert_and_stays_assigned(shared
     assert position.status_code == 200, position.text
     alerts = shared_client.get("/alerts", headers=auth(token)).json()
     assert "PLAN_INFEASIBLE" in {item["code"] for item in alerts}
-    assert shared_client.get("/loads", headers=auth(token)).json()[0]["status"] == "atandi"
+    body = shared_client.get("/loads", headers=auth(token)).json()[0]
+    assert body["status"] == "planlanabilir"
+    assert body["locked"] is False
+    assert body["vehicle_id"] is None

@@ -37,6 +37,7 @@ def candidates(
     api_key: str | None,
     app_settings=None,
     pool: list[Load] | None = None,
+    memo: dict | None = None,
 ) -> list[dict]:
     now = datetime.now(UTC)
     cfg = {name: getattr(app_settings, name, default) for name, default in DEFAULTS.items()}
@@ -64,10 +65,11 @@ def candidates(
         advice = chain_note = None
         if code is None and load.pickup_lat is not None and load.drop_lat is not None and position is not None:
             origin = _origin(position, open_load, load)
+            from_gps = origin == (position.latitude, position.longitude)
             pickup = (load.pickup_lat, load.pickup_lng)
             drop = (load.drop_lat, load.drop_lng)
-            empty = _leg(db, settings, origin, pickup, api_key)
-            loaded = _leg(db, settings, pickup, drop, api_key)
+            empty = _leg(db, settings, origin, pickup, api_key, origin_coarse=from_gps, memo=memo)
+            loaded = _leg(db, settings, pickup, drop, api_key, memo=memo)
             empty_km, loaded_km = empty.km, loaded.km
             quality = "google" if empty.quality == "google" and loaded.quality == "google" else "yaklasik"
             drive_min = drive_minutes(empty.seconds, loaded.seconds)
@@ -100,7 +102,7 @@ def candidates(
                 else:
                     break_min = inserted_break(reading.continuous_min, drive_min, limits.continuous_min)
                     extension = uses_extension(reading, drive_min, limits)
-                leg = _base_leg(db, settings, load, base, api_key, base_cache) if base is not None else None
+                leg = _base_leg(db, settings, load, base, api_key, base_cache, memo) if base is not None else None
                 base_km = leg.km if leg is not None else None
                 states = [item.toll_state for item in (empty, loaded, leg) if item is not None]
                 toll_unknown = settings.toll_enabled and any(state in (None, "bilinmiyor") for state in states)
@@ -152,6 +154,31 @@ def assignment_for(db: Session, settings: TenantSettings, load: Load, vehicle: V
     return row
 
 
+def confirm_lock(db: Session, settings: TenantSettings, load: Load, api_key: str | None) -> None:
+    """Kilitlemede boş bacağı canlı konumla bir kez hassas ölçer. Cache 5 km hücredeyse sapmayı düzeltir."""
+    if load.vehicle_id is None or load.pickup_lat is None:
+        return
+    position = _latest(db, load.vehicle_id)
+    if position is None:
+        return
+    open_load = (
+        db.query(Load)
+        .filter(Load.vehicle_id == load.vehicle_id, Load.status.in_(OPEN), Load.id != load.id)
+        .order_by(Load.deliver_end.desc())
+        .first()
+    )
+    origin = _origin(position, open_load, load)
+    if origin != (position.latitude, position.longitude):
+        return
+    empty = _leg(db, settings, origin, (load.pickup_lat, load.pickup_lng), api_key, origin_coarse=False)
+    if empty.quality != "google":
+        return
+    load.empty_km = empty.km
+    if load.loaded_km is not None:
+        load.benefit_try = _rank(load, settings, empty.km, load.loaded_km, load.toll_try, load.base_km)
+        load.rank_value = load.benefit_try
+
+
 def _reject(vehicle: Vehicle, position: VehiclePosition | None, settings: TenantSettings, load: Load, open_load: Load | None, now: datetime) -> str | None:
     if vehicle.status != "serviste":
         return "VEHICLE_NOT_IN_SERVICE"
@@ -175,12 +202,13 @@ def _origin(position: VehiclePosition, open_load: Load | None, load: Load) -> tu
     return position.latitude, position.longitude
 
 
-def _leg(db: Session, settings: TenantSettings, origin, destination, api_key: str | None) -> Leg:
+def _leg(db: Session, settings: TenantSettings, origin, destination, api_key: str | None, origin_coarse: bool = False, dest_coarse: bool = False, memo: dict | None = None) -> Leg:
+    extra = {"origin_coarse": origin_coarse, "dest_coarse": dest_coarse, "memo": memo}
     if settings.toll_enabled:
-        km, seconds, quality = road_leg(db, origin, destination, api_key, tolls=True)
-        toll, state = cached_toll(db, origin, destination)
+        km, seconds, quality = road_leg(db, origin, destination, api_key, tolls=True, **extra)
+        toll, state = cached_toll(db, origin, destination, **extra)
         return Leg(km, seconds, quality, toll, state)
-    km, seconds, quality = road_leg(db, origin, destination, api_key)
+    km, seconds, quality = road_leg(db, origin, destination, api_key, **extra)
     return Leg(km, seconds, quality, None, None)
 
 
@@ -206,12 +234,12 @@ def _base_point(settings: TenantSettings) -> tuple[Decimal, Decimal] | None:
     return found[0], found[1]
 
 
-def _base_leg(db: Session, settings: TenantSettings, load: Load, base, api_key: str | None, cache: list) -> Leg | None:
+def _base_leg(db: Session, settings: TenantSettings, load: Load, base, api_key: str | None, cache: list, memo: dict | None = None) -> Leg | None:
     if cache:
         return cache[0]
     leg = None
     if load.drop_lat is not None:
-        leg = _leg(db, settings, (load.drop_lat, load.drop_lng), base, api_key)
+        leg = _leg(db, settings, (load.drop_lat, load.drop_lng), base, api_key, memo=memo)
     cache.append(leg)
     return leg
 

@@ -43,8 +43,8 @@ export function Masa() {
 
   const counts = [
     ["Boş araç", vehicles.filter((item) => availability(item, settings) === "Boş").length],
-    ["Gidiş kuyruğu", outbound.length],
-    ["Dönüş havuzu", pool.length],
+    ["Gidiş Planlama", outbound.length],
+    ["Dönüş Planlama", pool.length],
     ["Açık uyarı", openAlerts.length],
   ] as const;
 
@@ -105,15 +105,38 @@ export function Masa() {
               Konumları çek
             </Button>
             <Button component="a" href="#gidis" variant="contained">
-              Gidiş kuyruğu
+              Gidiş Planlama
             </Button>
             <Button component="a" href="#donus" variant="contained" color="inherit">
-              Dönüş havuzu
+              Dönüş Planlama
             </Button>
           </Stack>
         ) : null}
       </Stack>
       {pullNote ? <Alert severity="info">{pullNote}</Alert> : null}
+      {settings?.routes_needs_approval ? (
+        <Alert
+          severity="warning"
+          action={
+            operate ? (
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => {
+                  notice("");
+                  api("/settings/routes/approve", token, { method: "POST" })
+                    .then(() => reload())
+                    .catch((err: Error) => notice(err.message));
+                }}
+              >
+                {settings.routes_limit} daha onayla
+              </Button>
+            ) : undefined
+          }
+        >
+          Günlük Routes tavanı doldu ({settings.routes_today}/{settings.routes_allowed}). Yeni rota için onay gerekir.
+        </Alert>
+      ) : null}
 
       <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", lg: "repeat(4, 1fr)" } }}>
         {counts.map(([label, value]) => (
@@ -185,7 +208,7 @@ export function Masa() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <Typography color="text.secondary">Henüz fayda hesabı yok. Dönüş havuzundan Hesapla’yı çalıştırın.</Typography>
+              <Typography color="text.secondary">Henüz fayda hesabı yok. Dönüş Planlamandan Hesapla’yı çalıştırın.</Typography>
             )}
           </CardContent>
         </Card>

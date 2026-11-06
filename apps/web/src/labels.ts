@@ -10,11 +10,13 @@ export const ROLE_LABEL: Record<Role, string> = {
 export const PAGE_LABEL: Record<Page, string> = {
   firmalar: "Firmalar",
   masa: "Özet",
-  gidis: "Gidiş kuyruğu",
-  donus: "Dönüş havuzu",
+  gidis: "Gidiş Planlama",
+  donus: "Dönüş Planlama",
   takip: "Takip",
   araclar: "Araçlar",
   soforler: "Şoförler",
+  takograf: "Takograf",
+  raporlar: "Raporlar",
   ayarlar: "Ayarlar",
   kullanicilar: "Kullanıcılar",
 };
@@ -47,7 +49,7 @@ export const CATALOG = ["tenteli", "frigolu", "sal", "lowbed", "tanker"];
 
 export function pagesFor(role: Role): Page[] {
   if (role === "platform_admin") return ["firmalar"];
-  const pages: Page[] = ["masa", "gidis", "donus", "takip", "araclar", "soforler"];
+  const pages: Page[] = ["masa", "gidis", "donus", "takip", "araclar", "soforler", "takograf", "raporlar"];
   if (role === "tenant_admin") pages.push("ayarlar", "kullanicilar");
   return pages;
 }
@@ -127,6 +129,15 @@ export const ALERT_LABEL: Record<string, string> = {
   SMS_NO_PHONE: "Şoförün telefonu yok",
   SMS_REJECTED: "SMS kabul edilmedi",
 };
+
+export function hours(minutes: number): string {
+  const value = Math.max(0, Math.round(minutes));
+  const hour = Math.floor(value / 60);
+  const rest = value % 60;
+  if (hour && rest) return `${hour} sa ${rest} dk`;
+  if (hour) return `${hour} sa`;
+  return `${rest} dk`;
+}
 
 export function clock(value: string): string {
   return new Intl.DateTimeFormat("tr-TR", {

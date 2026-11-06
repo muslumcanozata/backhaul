@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
-from app.models import Alert, Load, TachoState, TenantSettings, Vehicle, VehiclePosition
+from app.models import Alert, Load, TachoSample, TachoState, TenantSettings, Vehicle, VehiclePosition
 
 ISTANBUL = ZoneInfo("Europe/Istanbul")
 PACK = "TR-AETR-2026"
@@ -180,7 +180,59 @@ def observe(db: Session, vehicle: Vehicle, position: VehiclePosition) -> TachoSt
         _apply_gap(state, previous, position)
     state.source = "tahmini"
     db.flush()
+    record_sample(db, state, position.recorded_at, min_gap_min=SAMPLE_GAP_MIN)
     return state
+
+
+def record_sample(db: Session, state: TachoState, recorded_at: datetime | None = None, min_gap_min: int = 0) -> TachoSample:
+    stamp = recorded_at or datetime.now(UTC)
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=UTC)
+    existing = (
+        db.query(TachoSample)
+        .filter(TachoSample.driver_id == state.driver_id, TachoSample.recorded_at == stamp)
+        .one_or_none()
+    )
+    if existing is not None:
+        existing.source = state.source
+        existing.continuous_min = state.continuous_min
+        existing.daily_min = state.daily_min
+        existing.weekly_min = state.weekly_min
+        existing.fortnight_min = state.fortnight_min
+        existing.extensions_used = state.extensions_used
+        return existing
+    latest = (
+        db.query(TachoSample)
+        .filter(TachoSample.driver_id == state.driver_id)
+        .order_by(TachoSample.recorded_at.desc())
+        .first()
+    )
+    if latest is not None and min_gap_min > 0:
+        previous = latest.recorded_at
+        if previous.tzinfo is None:
+            previous = previous.replace(tzinfo=UTC)
+        if stamp - previous < timedelta(minutes=min_gap_min):
+            return latest
+    sample = TachoSample(
+        tenant_id=state.tenant_id,
+        driver_id=state.driver_id,
+        recorded_at=stamp,
+        source=state.source,
+        continuous_min=state.continuous_min,
+        daily_min=state.daily_min,
+        weekly_min=state.weekly_min,
+        fortnight_min=state.fortnight_min,
+        extensions_used=state.extensions_used,
+    )
+    db.add(sample)
+    db.flush()
+    return sample
+
+
+def ensure_sample(db: Session, state: TachoState) -> None:
+    found = db.query(TachoSample.id).filter(TachoSample.driver_id == state.driver_id).first()
+    if found is None:
+        record_sample(db, state)
 
 
 def sync_alerts(db: Session, vehicle: Vehicle, settings: TenantSettings) -> None:

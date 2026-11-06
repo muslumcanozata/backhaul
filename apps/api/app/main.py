@@ -9,7 +9,7 @@ from app.config import BootError, get_settings
 from app.db import init_db
 from app.deps import AppState, get_state
 from app.live import hub
-from app.routers import alerts, auth, fleet, live, loads, tenants, users
+from app.routers import alerts, auth, dossier, fleet, live, loads, reports, tacho, tenants, users
 
 log = logging.getLogger("backhaul.sms")
 
@@ -77,7 +77,9 @@ def _pull_telematics(runtime: AppState) -> None:
             try:
                 pull_all(db, row.tenant_id, row, runtime.settings)
                 dispatch(db, row.tenant_id, runtime.settings)
-                db.commit()
+                from app.returns import solve_returns
+
+                solve_returns(db, row.tenant_id, row, runtime.settings.google_maps_server_key, runtime.settings)
             except Exception:
                 db.rollback()
                 log.exception("Konum çekimi başarısız: %s", row.tenant_id)
@@ -111,9 +113,12 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(tenants.router)
     app.include_router(fleet.router)
+    app.include_router(dossier.router)
     app.include_router(users.router)
     app.include_router(loads.router)
     app.include_router(alerts.router)
+    app.include_router(tacho.router)
+    app.include_router(reports.router)
     app.include_router(live.router)
 
     @app.get("/health")

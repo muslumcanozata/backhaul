@@ -61,6 +61,17 @@ export function LoadFile({ load, onChanged, onClose }: { load: Load; onChanged: 
     }
   }
 
+  async function lock() {
+    notice("");
+    try {
+      await api(`/loads/${detail.id}/lock`, token, { method: "POST" });
+      await onChanged();
+      onClose();
+    } catch (err) {
+      notice(err instanceof Error ? err.message : "Kilit yazılamadı");
+    }
+  }
+
   async function approve() {
     notice("");
     try {
@@ -178,7 +189,12 @@ export function LoadFile({ load, onChanged, onClose }: { load: Load; onChanged: 
       </Stack>
       {canOperate(user.role) && detail.status === "onerildi" ? (
         <Button sx={{ mt: 2 }} variant="contained" onClick={approve}>
-          Onayla
+          Onayla ve kilitle
+        </Button>
+      ) : null}
+      {canOperate(user.role) && detail.status === "atandi" && !detail.locked ? (
+        <Button sx={{ mt: 2 }} variant="contained" onClick={lock}>
+          Kilitle
         </Button>
       ) : null}
       {canOperate(user.role) && detail.status === "atandi" ? (

@@ -104,6 +104,12 @@ class SettingsOut(BaseModel):
     home_base_ilce: str | None = None
     toll_enabled: bool = False
     netgsm_configured: bool = False
+    routes_today: int = 0
+    routes_limit: int = 333
+    routes_allowed: int = 333
+    routes_cache_hits: int = 0
+    routes_blocked: int = 0
+    routes_needs_approval: bool = False
 
 
 class SeyirSecretIn(BaseModel):
@@ -230,6 +236,7 @@ class LoadOut(BaseModel):
     tacho_fortnight_remain: int | None = None
     planned_break_min: int | None = None
     calculated_at: datetime | None = None
+    delivered_at: datetime | None = None
     rule_pack: str = "TR-AETR-2026"
     empty_km_cost: Decimal | None = None
     loaded_km_cost: Decimal | None = None
@@ -309,6 +316,45 @@ class AlertOut(BaseModel):
     seen_at: datetime | None
 
 
+class TachoSampleOut(BaseModel):
+    recorded_at: datetime
+    source: str
+    continuous_min: int
+    daily_min: int
+    weekly_min: int
+    fortnight_min: int
+    extensions_used: int
+
+
+class TachoDriverOut(BaseModel):
+    driver_id: UUID
+    name: str
+    phone: str
+    card_id: str | None
+    plate: str | None
+    source: str | None
+    continuous_used: int
+    continuous_limit: int
+    continuous_remain: int
+    daily_used: int
+    daily_limit: int
+    daily_remain: int
+    weekly_used: int
+    weekly_limit: int
+    weekly_remain: int
+    fortnight_used: int
+    fortnight_limit: int
+    fortnight_remain: int
+    extensions_used: int
+    extensions_limit: int
+    warning: bool
+    recorded_at: datetime | None
+
+
+class TachoDriverDetailOut(TachoDriverOut):
+    samples: list[TachoSampleOut] = []
+
+
 class AssignIn(BaseModel):
     vehicle_id: UUID
 
@@ -316,3 +362,140 @@ class AssignIn(BaseModel):
 class PullOut(BaseModel):
     updated: int
     unmatched: list[str]
+
+
+class ReportKpi(BaseModel):
+    key: str
+    label: str
+    value: str
+    hint: str | None = None
+
+
+class ReportSeriesPoint(BaseModel):
+    name: str
+    value: float
+
+
+class ReportOut(BaseModel):
+    slug: str
+    title: str
+    from_day: str
+    to_day: str
+    kpis: list[ReportKpi]
+    series: list[ReportSeriesPoint] = []
+    columns: list[str] = []
+    rows: list[dict] = []
+
+
+class MaintenanceCreate(BaseModel):
+    kind: str = Field(pattern=r"^(periyodik|ariza|muayene|diger)$")
+    happened_at: datetime
+    odometer_km: Decimal | None = Field(default=None, ge=0)
+    cost_try: Decimal | None = Field(default=None, ge=0)
+    workshop: str | None = Field(default=None, max_length=200)
+    note: str | None = Field(default=None, max_length=500)
+
+
+class MaintenanceOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    kind: str
+    happened_at: datetime
+    odometer_km: Decimal | None
+    cost_try: Decimal | None
+    workshop: str | None
+    note: str | None
+    source: str
+
+
+class TireEventCreate(BaseModel):
+    position: str = Field(pattern=r"^(FL|FR|RL|RR|RLO|RRO|stepne|diger)$")
+    event: str = Field(pattern=r"^(takildi|sokuldu|degisti|basinc)$")
+    brand_size: str | None = Field(default=None, max_length=120)
+    odometer_km: Decimal | None = Field(default=None, ge=0)
+    happened_at: datetime
+    note: str | None = Field(default=None, max_length=500)
+
+
+class TireEventOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    position: str
+    event: str
+    brand_size: str | None
+    odometer_km: Decimal | None
+    happened_at: datetime
+    note: str | None
+    source: str
+
+
+class FuelFillCreate(BaseModel):
+    happened_at: datetime
+    liters: Decimal | None = Field(default=None, gt=0)
+    amount_try: Decimal | None = Field(default=None, ge=0)
+    odometer_km: Decimal | None = Field(default=None, ge=0)
+    station: str | None = Field(default=None, max_length=200)
+    note: str | None = Field(default=None, max_length=500)
+
+
+class FuelFillOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    happened_at: datetime
+    liters: Decimal | None
+    amount_try: Decimal | None
+    odometer_km: Decimal | None
+    station: str | None
+    source: str
+    note: str | None
+
+
+class FuelSampleOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    recorded_at: datetime
+    level_pct: Decimal | None
+    level_liters: Decimal | None
+    odometer_km: Decimal | None
+
+
+class DriverStintOut(BaseModel):
+    id: UUID
+    driver_id: UUID
+    driver_name: str
+    started_at: datetime
+    ended_at: datetime | None
+    source: str
+
+
+class UsageLoadOut(BaseModel):
+    id: UUID
+    reference: str
+    direction: str
+    status: str
+    ready_at: datetime
+    delivered_at: datetime | None
+    driver_id: UUID | None = None
+    driver_name: str | None = None
+
+
+class VehicleDossierOut(BaseModel):
+    vehicle_id: UUID
+    plate: str
+    odometer_km: Decimal | None = None
+    driver_id: UUID | None = None
+    driver_name: str | None = None
+    open_stint_started_at: datetime | None = None
+    last_fuel_fill_at: datetime | None = None
+    last_maintenance_at: datetime | None = None
+    last_fuel_level_pct: Decimal | None = None
+    maintenances: list[MaintenanceOut] = []
+    tire_events: list[TireEventOut] = []
+    fuel_fills: list[FuelFillOut] = []
+    fuel_samples: list[FuelSampleOut] = []
+    driver_stints: list[DriverStintOut] = []
+    usage_loads: list[UsageLoadOut] = []

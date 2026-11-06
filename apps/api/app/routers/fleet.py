@@ -15,9 +15,11 @@ from app.telematics import enabled_providers
 from app.tracking import announce
 from app.config import Settings
 from app.deps import AppState, get_state
+from app.dossier import bind_driver
 from app.models import TRAILER_CATALOG, Driver, Load, TachoState, TenantSettings, User, Vehicle, VehiclePosition, VehicleStatus
 from app.phones import normalize_phone
 from app.places import find_place
+from app.geo import approve_extra, usage_snapshot
 from app.schemas import (
     DriverCreate,
     DriverOut,
@@ -62,7 +64,12 @@ def _settings_out(db: Session, tenant_id: UUID, settings: Settings) -> SettingsO
         reject_negative_benefit=row.reject_negative_benefit,
         auto_assign_estimated=row.auto_assign_estimated,
         netgsm_configured=_netgsm_configured(db, tenant_id, settings),
+        **_routes_usage(db, settings),
     )
+
+
+def _routes_usage(db: Session, settings: Settings) -> dict:
+    return usage_snapshot(db, settings.routes_daily_limit)
 
 
 def _netgsm_configured(db: Session, tenant_id: UUID, settings: Settings) -> bool:
@@ -252,6 +259,20 @@ def save_seyir(
     return _settings_out(db, tenant_id, state.settings)
 
 
+@router.post("/settings/routes/approve", response_model=SettingsOut)
+def approve_routes(
+    tenant_id: UUID = Depends(require_operation_tenant),
+    _: User = Depends(require_writer),
+    db: Session = Depends(get_db),
+    state: AppState = Depends(get_state),
+) -> SettingsOut:
+    approve_extra(db, extra=state.settings.routes_daily_limit)
+    from app.returns import solve_returns
+
+    solve_returns(db, tenant_id, _settings(db, tenant_id), state.settings.google_maps_server_key, state.settings, force=True)
+    return _settings_out(db, tenant_id, state.settings)
+
+
 @router.put("/settings/netgsm", response_model=SettingsOut)
 def save_netgsm_account(
     body: NetgsmSecretIn,
@@ -334,16 +355,15 @@ def patch_vehicle(
             dispatch(db, tenant_id, state.settings)
     if "driver_id" in changes:
         if body.driver_id is None:
-            vehicle.driver_id = None
+            bind_driver(db, vehicle, None, source="manual")
         else:
             driver = db.get(Driver, body.driver_id)
             if driver is None or driver.tenant_id != tenant_id:
                 raise HTTPException(status_code=404, detail="Şoför yok")
             previous = db.query(Vehicle).filter(Vehicle.driver_id == driver.id, Vehicle.id != vehicle.id).one_or_none()
             if previous is not None:
-                previous.driver_id = None
-                db.flush()
-            vehicle.driver_id = driver.id
+                bind_driver(db, previous, None, source="manual")
+            bind_driver(db, vehicle, driver.id, source="manual")
     db.commit()
     db.refresh(vehicle)
     return _vehicle_out(db, vehicle)

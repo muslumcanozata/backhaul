@@ -209,7 +209,7 @@ Karşılar: FR-3, BR-1, BR-2, BR-8’in Arvento kısmı.
 
 ### Faz 3 — Yük ve gidiş
 
-Dosya içe aktarımı, il-ilçe sözlüğü, koordinat, gidiş kuyruğu, aday listesi, operasyoncu ataması. Bu fazda takograf henüz kaba da olabilir: Faz 4 kapanana kadar ölçülmüş sayaç yoksa gidiş ataması da `TACHO_UNKNOWN` ile durur. Elle test sayacı girilebilir.
+Dosya içe aktarımı, il-ilçe sözlüğü, koordinat, Gidiş Planlama, aday listesi, operasyoncu ataması. Bu fazda takograf henüz kaba da olabilir: Faz 4 kapanana kadar ölçülmüş sayaç yoksa gidiş ataması da `TACHO_UNKNOWN` ile durur. Elle test sayacı girilebilir.
 
 Karşılar: FR-4, FR-5, BR-3, BR-4.
 
@@ -227,7 +227,7 @@ Karşılar: FR-6, FR-9, FR-10, BR-5, BR-10.
 
 ### Faz 6 — Operasyon ekranı
 
-Sefer masası Minimal kabuğundadır: gidiş kuyruğu, harita, dönüş havuzu ve sağdan açılan dosya paneli. Rolün göremeyeceği sayfa rayda durmaz. Ayrıntı [arayüz planındadır](arayuz.md). Masaüstü genişliği esas alınır. Dar ekranda menü çekmeceye iner.
+Sefer masası Minimal kabuğundadır: Gidiş Planlama, harita, Dönüş Planlama ve sağdan açılan dosya paneli. Rolün göremeyeceği sayfa rayda durmaz. Ayrıntı [arayüz planındadır](arayuz.md). Masaüstü genişliği esas alınır. Dar ekranda menü çekmeceye iner.
 
 İlk sürüm Faz 5’te işlevsel, Faz 6’da günlük kullanıma hazır olur.
 

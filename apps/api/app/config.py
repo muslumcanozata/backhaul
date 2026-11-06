@@ -46,6 +46,8 @@ class Settings(BaseSettings):
     chain_candidates: int = 5
     chain_max_wait_min: int = 360
     telematics_poll_seconds: int = 30
+    # Routes Matrix Essentials ücretsiz 10.000/ay → 10_000 // 30
+    routes_daily_limit: int = 333
 
     @field_validator(
         "tenant_id",

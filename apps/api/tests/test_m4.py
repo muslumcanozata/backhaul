@@ -23,7 +23,7 @@ def _firm(client: TestClient, code: str, email: str) -> str:
     return login(client, email, "secret-pass")
 
 
-def _google_leg(db, origin, destination, api_key):
+def _google_leg(db, origin, destination, api_key, **_):
     table = {
         ("41.000", "41.100"): Decimal("1.0"),
         ("41.000", "41.200"): Decimal("2.0"),
@@ -145,9 +145,12 @@ def test_netgsm_accept_locks_and_stays_on_the_firm_header(shared_client: TestCli
     for token, reference, header in ((first, "A-1", "FIRMAA"), (second, "B-1", "FIRMAB")):
         load = shared_client.get("/loads", headers=auth(token)).json()[0]
         assert load["reference"] == reference
-        assert load["locked"] is True
+        assert load["locked"] is False
         assert load["sms_status"] == "kabul"
         assert load["sms_job_id"] == f"job-{header}"
+        locked = shared_client.post(f"/loads/{load['id']}/lock", headers=auth(token))
+        assert locked.status_code == 200, locked.text
+        assert locked.json()["locked"] is True
 
 
 def test_stability_keeps_the_match_until_the_total_grows_fifteen_percent() -> None:

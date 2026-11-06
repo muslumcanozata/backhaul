@@ -60,6 +60,18 @@ export function Ayarlar() {
     setTypes((current) => (current.includes(type) ? current.filter((item) => item !== type) : [...current, type]));
   }
 
+  async function approveRoutes() {
+    notice("");
+    setSaved("");
+    try {
+      await api("/settings/routes/approve", token, { method: "POST" });
+      setSaved("Routes tavanı yükseltildi. Dönüş hesabı yeniden çalıştı.");
+      await reload();
+    } catch (err) {
+      notice(err instanceof Error ? err.message : "Onay yazılamadı");
+    }
+  }
+
   async function save(event: FormEvent) {
     event.preventDefault();
     notice("");
@@ -125,6 +137,24 @@ export function Ayarlar() {
           <Typography variant="caption" color="text.secondary">
             Açıkken Routes istekleri daha pahalı SKU'ya geçer. Ücret gelmeyen yük otomatik atanmaz. Binek araç fiyatı döner, ağır vasıta farklı olabilir.
           </Typography>
+          <Typography variant="body2">
+            Bugün {settings?.routes_today ?? 0} / {settings?.routes_allowed ?? 333} Routes isteği · {settings?.routes_cache_hits ?? 0} cache isabeti
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            İlk {settings?.routes_limit ?? 333} istek otomatik (aylık ücretsiz Essentials ≈ 10.000). Üstü için onay gerekir. Canlı konum 5 km hücrede tutulur, aynı rota tekrar sorulmaz.
+          </Typography>
+          {settings?.routes_needs_approval ? (
+            <Alert
+              severity="warning"
+              action={
+                <Button color="inherit" size="small" onClick={() => void approveRoutes()}>
+                  {settings.routes_limit} daha onayla
+                </Button>
+              }
+            >
+              Günlük Routes tavanı doldu{settings.routes_blocked ? ` · ${settings.routes_blocked} rota bekliyor` : ""}. Onaylayınca plan yeniden çalışır.
+            </Alert>
+          ) : null}
           <Button type="submit" variant="contained">
             Kaydet
           </Button>

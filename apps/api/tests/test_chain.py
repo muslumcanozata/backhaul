@@ -115,7 +115,7 @@ def test_road_leg_without_a_key_never_calls_the_network(shared_client: TestClien
         assert row.toll_state is None
 
 
-def _leg_ten(db, origin, destination, api_key, tolls=False):
+def _leg_ten(db, origin, destination, api_key, tolls=False, **_):
     return Decimal("10.0"), 600, "google"
 
 
@@ -259,14 +259,14 @@ def test_home_base_return_leg_lowers_the_benefit(shared_client: TestClient, monk
     assert after["base_km"] == "10.0"
 
 
-def _leg_with_tolls(db, origin, destination, api_key, tolls=False):
+def _leg_with_tolls(db, origin, destination, api_key, tolls=False, **_):
     assert tolls is True
     return Decimal("10.0"), 600, "google"
 
 
 def test_unknown_toll_keeps_the_pair_out_and_known_toll_is_charged(shared_client: TestClient, monkeypatch) -> None:
     monkeypatch.setattr("app.planning.road_leg", _leg_with_tolls)
-    monkeypatch.setattr("app.planning.cached_toll", lambda db, origin, destination: (None, "bilinmiyor"))
+    monkeypatch.setattr("app.planning.cached_toll", lambda db, origin, destination, **_: (None, "bilinmiyor"))
     token = _firm(shared_client, "a-tasima", "a@example.com")
     vehicle = _setup_pool(shared_client, token)
     shared_client.patch(
@@ -276,7 +276,7 @@ def test_unknown_toll_keeps_the_pair_out_and_known_toll_is_charged(shared_client
     )
     assert not [item for item in _loads(shared_client, token).values() if item["vehicle_id"] == vehicle]
 
-    monkeypatch.setattr("app.planning.cached_toll", lambda db, origin, destination: (Decimal("120"), "bilinen"))
+    monkeypatch.setattr("app.planning.cached_toll", lambda db, origin, destination, **_: (Decimal("120"), "bilinen"))
     shared_client.patch("/settings", json={"empty_km_cost": "10.5"}, headers=auth(token))
     assigned = [item for item in _loads(shared_client, token).values() if item["vehicle_id"] == vehicle]
     assert len(assigned) == 1

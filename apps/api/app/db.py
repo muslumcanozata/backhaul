@@ -90,6 +90,7 @@ def _ensure_tacho_columns(bind) -> None:
         "home_base_il": "VARCHAR(80)",
         "home_base_ilce": "VARCHAR(80)",
         "toll_enabled": "BOOLEAN DEFAULT 0",
+        "planning_fingerprint": "VARCHAR(64)",
     }
     load_columns = {
         "planned_drive_min": "INTEGER",
@@ -104,10 +105,13 @@ def _ensure_tacho_columns(bind) -> None:
         "chain_value_try": "NUMERIC(14, 2)",
         "chain_note": "VARCHAR(500)",
         "driver_advice": "VARCHAR(500)",
+        "delivered_at": "DATETIME",
     }
     road_columns = {
         "toll_try": "NUMERIC(12, 2)",
         "toll_state": "VARCHAR(12)",
+        "fetched_at": "DATETIME",
+        "tries": "INTEGER DEFAULT 0",
     }
     secret_columns = {
         "netgsm_usercode": "VARCHAR(500)",
@@ -121,6 +125,7 @@ def _ensure_tacho_columns(bind) -> None:
         _add_missing(conn, "loads", load_columns)
         _add_missing(conn, "road_cache", road_columns)
         _add_missing(conn, "tenant_secrets", secret_columns)
+        _add_missing(conn, "sms_outbox", {"created_at": "DATETIME"})
         conn.commit()
 
 

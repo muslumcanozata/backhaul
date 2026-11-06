@@ -1,22 +1,32 @@
+import hashlib
 from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
 from app.config import Settings
+from app.geo import COARSE, _cell
 from app.matching import best_pairs
-from app.models import Alert, Load, TachoState, TenantSettings, Vehicle
+from app.models import Alert, Load, TachoState, TenantSettings, Vehicle, VehiclePosition
 from app.netgsm import dispatch, drop_pending, queue_event
 from app.planning import candidates
 from app.tacho import reading_of
 
 
-def solve_returns(db: Session, tenant_id, settings: TenantSettings, api_key: str | None, app_settings: Settings, opener=None) -> int:
+def solve_returns(db: Session, tenant_id, settings: TenantSettings, api_key: str | None, app_settings: Settings, opener=None, force: bool = False) -> int:
     if settings.empty_km_cost is None or settings.loaded_km_cost is None:
         _cost_alert(db, tenant_id, present=True)
         db.commit()
         return 0
     _cost_alert(db, tenant_id, present=False)
+    mark = planning_mark(db, tenant_id, settings)
+    if not force and settings.planning_fingerprint == mark:
+        if opener is None:
+            dispatch(db, tenant_id, app_settings)
+        else:
+            dispatch(db, tenant_id, app_settings, opener)
+        db.commit()
+        return 0
     free = (
         db.query(Load)
         .filter(Load.tenant_id == tenant_id, Load.direction == "donus", Load.status.in_(("havuz", "onerildi", "atandi")), Load.locked == False)
@@ -24,8 +34,9 @@ def solve_returns(db: Session, tenant_id, settings: TenantSettings, api_key: str
     )
     options: dict[tuple[str, str], dict] = {}
     benefits: dict[tuple[str, str], int] = {}
+    memo: dict = {}
     for load in free:
-        for row in candidates(db, settings, load, api_key, app_settings, free):
+        for row in candidates(db, settings, load, api_key, app_settings, free, memo=memo):
             if not row["eligible"] or row["distance_quality"] != "google":
                 continue
             if row["toll_unknown"]:
@@ -49,8 +60,56 @@ def solve_returns(db: Session, tenant_id, settings: TenantSettings, api_key: str
         dispatch(db, tenant_id, app_settings)
     else:
         dispatch(db, tenant_id, app_settings, opener)
+    db.flush()
+    settings.planning_fingerprint = planning_mark(db, tenant_id, settings)
     db.commit()
     return len(chosen)
+
+
+def planning_mark(db: Session, tenant_id, settings: TenantSettings) -> str:
+    parts = [
+        str(settings.empty_km_cost),
+        str(settings.loaded_km_cost),
+        settings.home_base_il or "",
+        settings.home_base_ilce or "",
+        str(int(bool(settings.toll_enabled))),
+        str(int(bool(settings.reject_negative_benefit))),
+        str(settings.stability_percent),
+        str(int(bool(settings.auto_assign_estimated))),
+        str(int(bool(settings.return_approval))),
+    ]
+    loads = (
+        db.query(Load)
+        .filter(Load.tenant_id == tenant_id, Load.direction == "donus", Load.status.in_(("havuz", "onerildi", "atandi")), Load.locked == False)
+        .order_by(Load.id)
+        .all()
+    )
+    for load in loads:
+        parts.append(
+            f"{load.id}:{load.status}:{load.vehicle_id}:{load.ready_at}:{load.deliver_end}:{load.freight_try}:{load.pickup_lat}:{load.drop_lat}:{load.tonnage}:{load.trailer_type}"
+        )
+    vehicles = db.query(Vehicle).filter(Vehicle.tenant_id == tenant_id).order_by(Vehicle.id).all()
+    for vehicle in vehicles:
+        position = (
+            db.query(VehiclePosition)
+            .filter(VehiclePosition.vehicle_id == vehicle.id)
+            .order_by(VehiclePosition.recorded_at.desc())
+            .first()
+        )
+        cell = "-"
+        if position is not None:
+            cell = f"{_cell(position.latitude, COARSE)}:{_cell(position.longitude, COARSE)}"
+        open_load = (
+            db.query(Load.id)
+            .filter(Load.vehicle_id == vehicle.id, Load.status.in_(("atandi", "yolda")))
+            .first()
+        )
+        tacho = db.get(TachoState, vehicle.driver_id) if vehicle.driver_id else None
+        bucket = "-"
+        if tacho is not None:
+            bucket = f"{int(tacho.continuous_min or 0) // 30}:{int(tacho.daily_min or 0) // 30}:{tacho.source}"
+        parts.append(f"{vehicle.id}:{vehicle.status}:{vehicle.driver_id}:{cell}:{open_load[0] if open_load else '-'}:{bucket}")
+    return hashlib.sha256("|".join(parts).encode()).hexdigest()
 
 
 def _stable(free: list[Load], settings: TenantSettings, benefits: dict[tuple[str, str], int]) -> list[tuple[str, str]]:

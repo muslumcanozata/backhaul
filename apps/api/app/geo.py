@@ -2,12 +2,28 @@ import json
 import math
 import urllib.parse
 import urllib.request
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
-from app.models import RoadCache
+from app.config import get_settings
+from app.models import RoadCache, RoutesUsage
 from app.places import Place, find_place
+
+FINE = 0.001
+COARSE = 0.05
+APPROVE_BATCH = 333
+GOOGLE_TTL = timedelta(days=90)
+TOLL_TTL = timedelta(days=30)
+BACKOFF = (
+    timedelta(0),
+    timedelta(minutes=15),
+    timedelta(hours=1),
+    timedelta(hours=6),
+    timedelta(days=1),
+)
 
 
 def locate(
@@ -42,8 +58,32 @@ def _google_point(place: Place, address: str | None, api_key: str, opener) -> tu
     return Decimal(str(location["lat"])), Decimal(str(location["lng"]))
 
 
-def _cell(value: Decimal) -> str:
-    return f"{float(value):.3f}"
+def _cell(value: Decimal, step: float = FINE) -> str:
+    snapped = round(round(float(value) / step) * step, 6)
+    decimals = 3 if step < 0.01 else 2
+    return f"{snapped:.{decimals}f}"
+
+
+def _snap(value: Decimal, step: float) -> Decimal:
+    return Decimal(_cell(value, step))
+
+
+def cache_key(
+    origin: tuple[Decimal, Decimal],
+    destination: tuple[Decimal, Decimal],
+    origin_coarse: bool = False,
+    dest_coarse: bool = False,
+) -> str:
+    ostep = COARSE if origin_coarse else FINE
+    dstep = COARSE if dest_coarse else FINE
+    return "|".join(
+        (
+            _cell(origin[0], ostep),
+            _cell(origin[1], ostep),
+            _cell(destination[0], dstep),
+            _cell(destination[1], dstep),
+        )
+    )
 
 
 def _haversine_km(lat1: Decimal, lng1: Decimal, lat2: Decimal, lng2: Decimal) -> Decimal:
@@ -64,34 +104,173 @@ def road_leg(
     api_key: str | None,
     opener=urllib.request.urlopen,
     tolls: bool = False,
+    origin_coarse: bool = False,
+    dest_coarse: bool = False,
+    limit: int | None = None,
+    now: datetime | None = None,
+    memo: dict | None = None,
 ) -> tuple[Decimal, int, str]:
-    cache_key = "|".join(_cell(value) for value in (*origin, *destination))
-    cached = db.get(RoadCache, cache_key)
-    if cached is not None:
-        if not (tolls and api_key and cached.quality == "google" and cached.toll_state is None):
-            return cached.kilometers, cached.seconds, cached.quality
-    measured = _measure(origin, destination, api_key, opener, tolls)
+    key = cache_key(origin, destination, origin_coarse, dest_coarse)
+    if memo is not None and key in memo:
+        return memo[key]
+    cached = db.get(RoadCache, key)
+    clock = now or datetime.now(UTC)
+    quota = _limit(limit)
+    if cached is not None and _usable(cached, tolls, clock):
+        _hit(db)
+        result = cached.kilometers, cached.seconds, cached.quality
+        if memo is not None:
+            memo[key] = result
+        return result
+    if not api_key:
+        result = _store_approx(db, cached, key, origin, destination, clock)
+        if memo is not None:
+            memo[key] = result
+        return result
+    if not _consume(db, quota):
+        approximate = _haversine_km(*origin, *destination)
+        result = approximate, max(1, int(float(approximate) / 60 * 3600)), "yaklasik"
+        if memo is not None:
+            memo[key] = result
+        return result
+    measured_from = _point(origin, origin_coarse), _point(destination, dest_coarse)
+    measured = _measure(*measured_from, api_key, opener, tolls)
     if cached is None:
-        cached = RoadCache(cache_key=cache_key)
+        cached = RoadCache(cache_key=key, kilometers=measured[0], seconds=measured[1], quality=measured[2], tries=0)
         db.add(cached)
-    cached.kilometers, cached.seconds, cached.quality = measured[0], measured[1], measured[2]
-    if measured[2] == "google" and tolls:
-        cached.toll_try, cached.toll_state = measured[3], measured[4]
+    if measured[2] == "google":
+        cached.kilometers, cached.seconds, cached.quality = measured[0], measured[1], measured[2]
+        cached.tries = 0
+        cached.fetched_at = clock.replace(tzinfo=None)
+        if tolls:
+            cached.toll_try, cached.toll_state = measured[3], measured[4]
+    elif cached.quality != "google":
+        cached.kilometers, cached.seconds, cached.quality = measured[0], measured[1], measured[2]
+        cached.tries = (cached.tries or 0) + 1
+        cached.fetched_at = clock.replace(tzinfo=None)
+    else:
+        cached.tries = (cached.tries or 0) + 1
+        cached.fetched_at = clock.replace(tzinfo=None)
     db.flush()
-    return cached.kilometers, cached.seconds, cached.quality
+    result = cached.kilometers, cached.seconds, cached.quality
+    if memo is not None:
+        memo[key] = result
+    return result
 
 
 def cached_toll(
     db: Session,
     origin: tuple[Decimal, Decimal],
     destination: tuple[Decimal, Decimal],
+    origin_coarse: bool = False,
+    dest_coarse: bool = False,
 ) -> tuple[Decimal | None, str | None]:
     """Önbellekteki geçiş ücreti. Durum: yok, bilinen, bilinmiyor. Hesaplanmadıysa None."""
-    cache_key = "|".join(_cell(value) for value in (*origin, *destination))
-    cached = db.get(RoadCache, cache_key)
+    cached = db.get(RoadCache, cache_key(origin, destination, origin_coarse, dest_coarse))
     if cached is None or cached.quality != "google":
         return None, None
     return cached.toll_try, cached.toll_state
+
+
+def usage_snapshot(db: Session, limit: int | None = None) -> dict:
+    quota = _limit(limit)
+    row = _today(db)
+    allowed = quota + row.approved_extra
+    return {
+        "routes_today": row.calls,
+        "routes_limit": quota,
+        "routes_allowed": allowed,
+        "routes_cache_hits": row.cache_hits,
+        "routes_blocked": row.blocked,
+        "routes_needs_approval": quota > 0 and row.calls >= allowed,
+    }
+
+
+def approve_extra(db: Session, extra: int = APPROVE_BATCH) -> dict:
+    row = _today(db)
+    row.approved_extra += extra
+    row.blocked = 0
+    db.flush()
+    return usage_snapshot(db)
+
+
+def _today(db: Session) -> RoutesUsage:
+    day = datetime.now(ZoneInfo("Europe/Istanbul")).date().isoformat()
+    row = db.get(RoutesUsage, day)
+    if row is None:
+        row = RoutesUsage(day=day, calls=0, cache_hits=0, approved_extra=0, blocked=0)
+        db.add(row)
+        db.flush()
+    return row
+
+
+def _limit(limit: int | None) -> int:
+    return get_settings().routes_daily_limit if limit is None else limit
+
+
+def _hit(db: Session) -> None:
+    _today(db).cache_hits += 1
+
+
+def _consume(db: Session, limit: int) -> bool:
+    if limit <= 0:
+        return True
+    row = _today(db)
+    if row.calls >= limit + row.approved_extra:
+        row.blocked += 1
+        return False
+    row.calls += 1
+    return True
+
+
+def _usable(cached: RoadCache, tolls: bool, now: datetime) -> bool:
+    fetched = _as_utc(cached.fetched_at)
+    if cached.quality == "google":
+        if fetched is not None and now - fetched > GOOGLE_TTL:
+            return False
+        if tolls:
+            if cached.toll_state is None:
+                return False
+            if fetched is not None and now - fetched > TOLL_TTL:
+                return False
+        return True
+    if fetched is None:
+        return False
+    wait = BACKOFF[min(cached.tries or 0, len(BACKOFF) - 1)]
+    return now - fetched < wait
+
+
+def _store_approx(
+    db: Session,
+    cached: RoadCache | None,
+    key: str,
+    origin: tuple[Decimal, Decimal],
+    destination: tuple[Decimal, Decimal],
+    clock: datetime,
+) -> tuple[Decimal, int, str]:
+    approximate = _haversine_km(*origin, *destination)
+    seconds = max(1, int(float(approximate) / 60 * 3600))
+    if cached is None:
+        cached = RoadCache(cache_key=key, kilometers=approximate, seconds=seconds, quality="yaklasik", tries=1)
+        db.add(cached)
+    else:
+        cached.kilometers, cached.seconds, cached.quality = approximate, seconds, "yaklasik"
+        cached.tries = max(cached.tries or 0, 1)
+    cached.fetched_at = clock.replace(tzinfo=None)
+    db.flush()
+    return cached.kilometers, cached.seconds, cached.quality
+
+
+def _point(pair: tuple[Decimal, Decimal], coarse: bool) -> tuple[Decimal, Decimal]:
+    if not coarse:
+        return pair
+    return _snap(pair[0], COARSE), _snap(pair[1], COARSE)
+
+
+def _as_utc(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value
 
 
 def _measure(

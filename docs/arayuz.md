@@ -15,7 +15,7 @@ Menü maddeleri, roller ve sayfa işleri bu belgede kalır. Şablonun Overview, 
 
 **Sicil.** Platform yöneticisinin sayfaları. Firma listesi ve firma dosyası karttadır. Harita, yük ve şoför SMS’i bu kabukta yoktur.
 
-**Sefer masası.** Firma sayfaları. Gün üç kartta durur: gidiş kuyruğu, son konum, dönüş havuzu. Üstte boş araç, bakım, sinyal ve şoförsüz sayıları ayrı kartlardadır. Satır seçilince sağdan dosya çekmecesi açılır. Masa kaybolmaz. Durumlar sözcükle yazılır: boş, yüklü, boşalacak, bakımda, arıza.
+**Sefer masası.** Firma sayfaları. Gün üç kartta durur: Gidiş Planlama, son konum, Dönüş Planlama. Üstte boş araç, bakım, sinyal ve şoförsüz sayıları ayrı kartlardadır. Satır seçilince sağdan dosya çekmecesi açılır. Masa kaybolmaz. Durumlar sözcükle yazılır: boş, yüklü, boşalacak, bakımda, arıza.
 
 İzleyici yazma düğmelerini görmez. Operasyoncu ayar ve kullanıcı sayfalarını görmez.
 
@@ -42,7 +42,7 @@ Platform yöneticisi. Sonraki sürüm.
 
 Firma yöneticisi, operasyoncu ve izleyici okur. Operasyon yazma, kuyruk sayfalarındadır.
 
-- Üst KPI: boş araç, gidiş kuyruğu, dönüş havuzu, açık uyarı.
+- Üst KPI: boş araç, Gidiş Planlama, Dönüş Planlama, açık uyarı.
 - Grafikler: filo müsaitliği, yük durumu dağılımı, dönüş faydası.
 - Canlı harita ve yaklaşan gidiş / dönüş özet listeleri.
 - Gidiş ve dönüş sayfalarına kısayol.
@@ -61,9 +61,20 @@ Liste firma yöneticisi, operasyoncu ve izleyiciye açıktır. Ana veriyi firma 
 
 - Liste: plaka, kasa, kapasite, durum, şoför, son sinyal yaşı, müsaitlik.
 - Müsait değilse gerekçe görünür: bakım, arıza, bayat sinyal, şoför yok, üzerinde iş var.
-- Dosya: plaka, kapasite, dara, kasa, cihaz kimliği, bağlı şoför, son konum, hız, yön, açık sefer, takograf özeti, son SMS.
+- Dosya (iç sayfa, `#araclar/<araç-id>`): sekmeli özlük — Özet, Bakım, Lastik, Yakıt, Kullanım. Listeye dön ile geri.
+- Özet: plaka, kapasite, dara, kasa, cihaz, şoför, km (Seyir), depo seviyesi, son dolum/bakım, konum, takograf; durum ve şoför bağlama (firma yöneticisi); elle konum (operasyoncu).
+- Bakım / Lastik / Yakıt: elle kayıt + geçmiş listesi (operasyoncu ve firma yöneticisi yazar, izleyici okur). Yakıtta Seyir depo örnekleri ve ani yükselişten otomatik dolum adayı da görünür.
+- Kullanım: şoför stint zaman çizelgesi (Seyir eşlemesi + elle bağlama) ve bu araçtaki yükler.
 - Durum değiştirme: serviste, bakımda, arıza.
-- Sonraki sürümde aynı dosyaya aks ağırlığı ve rota sapması eklenir. MVP’de bu alanlar yoktur.
+- Sonraki sürümde aynı dosyaya aks ağırlığı ve rota sapması eklenir.
+
+### Takograf
+
+Liste üç firma rolüne açıktır.
+
+- Sürücü listesi: günlük kullanım çubuğu, bağlı plaka, ölçülmüş/tahmini, sınır yakını uyarısı.
+- Dosya: kesintisiz, günlük, haftalık ve iki haftalık kullanım, limit ve kalan süre. Uzatma hakkı.
+- Geçmiş: Seyir ölçümleri ve tahmini sayaç örnekleri, yeniden eskiye.
 
 ### Şoförler
 
@@ -73,7 +84,7 @@ Liste üç firma rolüne açıktır. Kayıt firma yöneticisinindir.
 - Dosya: telefon, takograf kartı, bugünkü sürüş özeti, bu şoföre giden son SMS’ler ve iletim durumu.
 - Operasyoncu SMS’i buradan da yeniden gönderir. Şoför ekleyemez.
 
-### Gidiş kuyruğu
+### Gidiş Planlama
 
 Operasyoncu ve firma yöneticisi yazar. İzleyici okur.
 
@@ -82,7 +93,7 @@ Operasyoncu ve firma yöneticisi yazar. İzleyici okur.
 - Satır seçince dosya paneli: uygun araçlar, atama, iptal, yer güncelleme.
 - Kuyruktan çıkarma atanmamış veya atanmış satırı iptal eder.
 
-### Dönüş havuzu
+### Dönüş Planlama
 
 Aynı yazma sınırı gidişle aynıdır. Onay modu kapalıyken sistem atar. Onay açıksa operasyoncu öneriyi onaylar.
 
@@ -123,10 +134,16 @@ Firma yöneticisi okur. Sonraki sürümde izleyici de okur. Operasyoncu bu sayfa
 
 ### Raporlar
 
-Sonraki sürüm. İzleyici dahil üç firma rolü okur. Yazma yoktur.
+İzleyici dahil üç firma rolü okur. Yazma yoktur. Menüde tek sayfa; içinde sekme.
 
-- Firma bazında boş kilometre, atanan fırsat sayısı, süresinde teslim.
-- Başka firmanın toplamı yoktur.
+Ortak filtre: bugün / 7 gün / 30 gün / özel aralık, isteğe bağlı yön (operasyon ve filo), Excel indir. Başka firmanın toplamı yoktur.
+
+1. **Operasyon özeti:** atanan / teslim / iptal, boş ve dolu km, süresinde teslim (`delivered_at`), gidiş–dönüş kırılımı, gün gün tablo.
+2. **Dönüş faydası:** navlun, fayda, geçiş, üse km, kilitli fırsat, araç/aracı firma satırları.
+3. **Takograf uyum:** sınır yakını, uzatma biten, doluluk dağılımı, sürücü satırı → `#takograf/<id>`.
+4. **SMS iletişim:** kabul / iletilemedi / düştü / bekliyor, olay kırılımı, parça sayısı, maskeli telefon.
+5. **Filo kullanım:** anlık durum dağılımı, araç başına dönem ataması / teslim / boş km.
+6. **Routes maliyeti:** günlük çağrı, cache isabet, engellenen, onaylı ek (TL tahmin yok).
 
 ## 3. Rol sınırı
 
@@ -136,11 +153,12 @@ Sonraki sürüm. İzleyici dahil üç firma rolü okur. Yazma yoktur.
 | Özet, gidiş, dönüş | Yok | Yazar | Yazar | Okur |
 | Bildirimler (üst çubuk) | Yok | Yazar | Yazar | Okur |
 | Takip | Yok | Okur | Okur | Okur |
+| Takograf | Yok | Okur | Okur | Okur |
+| Raporlar | Yok | Okur | Okur | Okur |
 | Araç ve şoför ana verisi | Yok | Yazar | Okur | Okur |
 | Elle konum, tonaj düzeltmesi, SMS yeniden gönder | Yok | Yazar | Yazar | Yok |
 | Ayarlar, kullanıcılar | Firma dosyasında yazar | Yazar | Yok | Yok |
 | Denetim | Yok | Okur | Yok | Sonraki sürümde okur |
-| Raporlar | Yok | Okur | Okur | Okur |
 
 Firma yöneticisi operasyon sayfalarında operasyoncu ile aynı işi yapar. Ek olarak ayar, kullanıcı ve denetim açar. Platform yöneticisinin belirteci `/vehicles`, `/loads` ve `/alerts` üzerinde 403 alır.
 
@@ -149,8 +167,8 @@ Firma yöneticisi operasyon sayfalarında operasyoncu ile aynı işi yapar. Ek o
 M1’deki geçici formlar bu kabuğun yerini alır.
 
 1. M1 kapanırken sicil kabuğu: firmalar, firma dosyası, kullanıcı. Sefer masasında araç ve şoför listesi, ayarlar. Rol dışı sayfa ve düğme görünmez.
-2. M2 masa iskeleti: gidiş kuyruğu, harita, yük dosyası, içe aktarma sonucu.
+2. M2 masa iskeleti: Gidiş Planlama, harita, yük dosyası, içe aktarma sonucu.
 3. M3 uyarı listesi ve araç dosyasındaki takograf özeti.
 4. M4 dönüş sütunu, fayda paneli, SMS durumu.
 
-Denetim, raporlar, sağlık ve Seyir alanı bu sıranın dışındadır. Sayfadaki yerleri yukarıda sabittir. İlk yayında rayda durmazlar.
+Denetim ve sağlık bu sıranın dışındadır. Raporlar ve Seyir / Takograf menüde durur.

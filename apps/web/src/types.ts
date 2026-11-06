@@ -43,6 +43,71 @@ export type Driver = {
   card_id: string | null;
 };
 
+export type VehicleDossier = {
+  vehicle_id: string;
+  plate: string;
+  odometer_km: string | null;
+  driver_id: string | null;
+  driver_name: string | null;
+  open_stint_started_at: string | null;
+  last_fuel_fill_at: string | null;
+  last_maintenance_at: string | null;
+  last_fuel_level_pct: string | null;
+  maintenances: {
+    id: string;
+    kind: string;
+    happened_at: string;
+    odometer_km: string | null;
+    cost_try: string | null;
+    workshop: string | null;
+    note: string | null;
+    source: string;
+  }[];
+  tire_events: {
+    id: string;
+    position: string;
+    event: string;
+    brand_size: string | null;
+    odometer_km: string | null;
+    happened_at: string;
+    note: string | null;
+    source: string;
+  }[];
+  fuel_fills: {
+    id: string;
+    happened_at: string;
+    liters: string | null;
+    amount_try: string | null;
+    odometer_km: string | null;
+    station: string | null;
+    source: string;
+    note: string | null;
+  }[];
+  fuel_samples: {
+    id: string;
+    recorded_at: string;
+    level_pct: string | null;
+    level_liters: string | null;
+    odometer_km: string | null;
+  }[];
+  driver_stints: {
+    id: string;
+    driver_id: string;
+    driver_name: string;
+    started_at: string;
+    ended_at: string | null;
+    source: string;
+  }[];
+  usage_loads: {
+    id: string;
+    reference: string;
+    direction: string;
+    status: string;
+    ready_at: string;
+    delivered_at: string | null;
+  }[];
+};
+
 export type Settings = {
   enabled_trailer_types: string[];
   empty_km_cost: string | null;
@@ -66,9 +131,65 @@ export type Settings = {
   return_approval: boolean;
   auto_assign_estimated: boolean;
   netgsm_configured: boolean;
+  routes_today: number;
+  routes_limit: number;
+  routes_allowed: number;
+  routes_cache_hits: number;
+  routes_blocked: number;
+  routes_needs_approval: boolean;
 };
 
-export type Page = "firmalar" | "masa" | "gidis" | "donus" | "takip" | "araclar" | "soforler" | "ayarlar" | "kullanicilar";
+export type Page = "firmalar" | "masa" | "gidis" | "donus" | "takip" | "araclar" | "soforler" | "takograf" | "raporlar" | "ayarlar" | "kullanicilar";
+
+export type ReportKpi = { key: string; label: string; value: string; hint?: string | null };
+export type ReportSeriesPoint = { name: string; value: number };
+export type Report = {
+  slug: string;
+  title: string;
+  from_day: string;
+  to_day: string;
+  kpis: ReportKpi[];
+  series: ReportSeriesPoint[];
+  columns: string[];
+  rows: Record<string, string | number>[];
+};
+
+export type TachoDriver = {
+  driver_id: string;
+  name: string;
+  phone: string;
+  card_id: string | null;
+  plate: string | null;
+  source: string | null;
+  continuous_used: number;
+  continuous_limit: number;
+  continuous_remain: number;
+  daily_used: number;
+  daily_limit: number;
+  daily_remain: number;
+  weekly_used: number;
+  weekly_limit: number;
+  weekly_remain: number;
+  fortnight_used: number;
+  fortnight_limit: number;
+  fortnight_remain: number;
+  extensions_used: number;
+  extensions_limit: number;
+  warning: boolean;
+  recorded_at: string | null;
+};
+
+export type TachoSample = {
+  recorded_at: string;
+  source: string;
+  continuous_min: number;
+  daily_min: number;
+  weekly_min: number;
+  fortnight_min: number;
+  extensions_used: number;
+};
+
+export type TachoDriverDetail = TachoDriver & { samples: TachoSample[] };
 
 export type LiveVehicle = {
   id: string;

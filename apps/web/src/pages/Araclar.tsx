@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Button from "@mui/material/Button";
@@ -17,11 +17,17 @@ import { STATUS_LABEL, TRAILER_LABEL, availability, canWriteMaster, driverName }
 import { useSession } from "../session";
 import { VehicleFile } from "./VehicleFile";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isVehicleId(value: string) {
+  return UUID_RE.test(value);
+}
+
 export function Araclar({ initialFilter = "" }: { initialFilter?: string }) {
   const { token, user, notice } = useSession();
   const { vehicles, drivers, settings, reload } = useFleet();
-  const [selected, setSelected] = useState("");
-  const [filter, setFilter] = useState(initialFilter);
+  const [selected, setSelected] = useState(() => (isVehicleId(initialFilter) ? initialFilter : ""));
+  const [filter, setFilter] = useState(() => (isVehicleId(initialFilter) ? "" : initialFilter));
   const [plate, setPlate] = useState("");
   const [capacity, setCapacity] = useState("24");
   const [trailer, setTrailer] = useState(settings?.enabled_trailer_types[0] ?? "tenteli");
@@ -29,19 +35,40 @@ export function Araclar({ initialFilter = "" }: { initialFilter?: string }) {
   const types = settings?.enabled_trailer_types ?? ["tenteli"];
 
   useEffect(() => {
-    setFilter(initialFilter);
+    if (isVehicleId(initialFilter)) {
+      setSelected(initialFilter);
+      setFilter("");
+    } else {
+      setFilter(initialFilter);
+      if (initialFilter) setSelected("");
+    }
   }, [initialFilter]);
 
-  const groups = new Map<string, number>();
-  vehicles.forEach((item) => {
-    const label = availability(item, settings);
-    groups.set(label, (groups.get(label) ?? 0) + 1);
-  });
+  const groups = useMemo(() => {
+    const map = new Map<string, number>();
+    vehicles.forEach((item) => {
+      const label = availability(item, settings);
+      map.set(label, (map.get(label) ?? 0) + 1);
+    });
+    return map;
+  }, [vehicles, settings]);
+
   const shown = filter ? vehicles.filter((item) => availability(item, settings) === filter) : vehicles;
 
-  function choose(next: string) {
+  function chooseFilter(next: string) {
     setFilter(next);
+    setSelected("");
     window.location.hash = next ? `araclar/${encodeURIComponent(next)}` : "araclar";
+  }
+
+  function openVehicle(id: string) {
+    setSelected(id);
+    window.location.hash = `araclar/${id}`;
+  }
+
+  function closeVehicle() {
+    setSelected("");
+    window.location.hash = filter ? `araclar/${encodeURIComponent(filter)}` : "araclar";
   }
 
   useEffect(() => {
@@ -57,27 +84,48 @@ export function Araclar({ initialFilter = "" }: { initialFilter?: string }) {
         body: JSON.stringify({ plate, capacity_tons: capacity, trailer_type: trailer }),
       });
       setPlate("");
-      setSelected(created.id);
       await reload();
+      openVehicle(created.id);
     } catch (err) {
       notice(err instanceof Error ? err.message : "Araç eklenemedi");
     }
   }
 
+  if (selected && vehicle) {
+    return (
+      <Stack spacing={2}>
+        <VehicleFile vehicle={vehicle} drivers={drivers} settings={settings} onChanged={reload} onClose={closeVehicle} />
+      </Stack>
+    );
+  }
+
+  if (selected && !vehicle) {
+    return (
+      <Card>
+        <CardContent>
+          <Stack spacing={2}>
+            <Typography color="text.secondary">Araç bulunamadı.</Typography>
+            <Button onClick={closeVehicle}>Listeye dön</Button>
+          </Stack>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Box sx={{ display: "grid", gap: 3, gridTemplateColumns: { xs: "1fr", lg: canWriteMaster(user.role) ? "1.4fr 0.8fr" : "1fr" } }}>
       <Card>
-        <CardHeader title="Araçlar" subheader={vehicle ? "Dosya sağdan açılır." : "Dosya için bir araç seçin."} />
+        <CardHeader title="Araçlar" subheader="Özlük dosyası için bir araç seçin." />
         <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1, px: 2, pb: 1 }}>
-          <Chip label={`Tümü ${vehicles.length}`} color={filter ? "default" : "primary"} onClick={() => choose("")} />
+          <Chip label={`Tümü ${vehicles.length}`} color={filter ? "default" : "primary"} onClick={() => chooseFilter("")} />
           {[...groups.entries()].map(([label, count]) => (
-            <Chip key={label} label={`${label} ${count}`} color={filter === label ? "primary" : "default"} onClick={() => choose(label)} />
+            <Chip key={label} label={`${label} ${count}`} color={filter === label ? "primary" : "default"} onClick={() => chooseFilter(label)} />
           ))}
-          {filter && !groups.has(filter) ? <Chip label={`${filter} 0`} color="primary" onClick={() => choose("")} /> : null}
+          {filter && !groups.has(filter) ? <Chip label={`${filter} 0`} color="primary" onClick={() => chooseFilter("")} /> : null}
         </Stack>
         <List>
           {shown.map((item) => (
-            <ListItemButton key={item.id} selected={item.id === selected} onClick={() => setSelected(item.id)}>
+            <ListItemButton key={item.id} onClick={() => openVehicle(item.id)}>
               <Stack>
                 <Typography variant="subtitle2">{item.plate}</Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -115,7 +163,6 @@ export function Araclar({ initialFilter = "" }: { initialFilter?: string }) {
           </CardContent>
         </Card>
       ) : null}
-      {vehicle ? <VehicleFile vehicle={vehicle} drivers={drivers} settings={settings} onChanged={reload} onClose={() => setSelected("")} /> : null}
     </Box>
   );
 }

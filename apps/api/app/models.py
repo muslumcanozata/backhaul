@@ -1,6 +1,6 @@
 import enum
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlalchemy import JSON, DateTime, ForeignKey, Numeric, String, UniqueConstraint, Uuid
@@ -52,6 +52,7 @@ class TenantSettings(Base):
     home_base_il: Mapped[str | None] = mapped_column(String(80), nullable=True)
     home_base_ilce: Mapped[str | None] = mapped_column(String(80), nullable=True)
     toll_enabled: Mapped[bool] = mapped_column(default=False)
+    planning_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
     tenant: Mapped[Tenant] = relationship(back_populates="settings")
 
 
@@ -150,6 +151,7 @@ class Load(Base):
     chain_value_try: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
     chain_note: Mapped[str | None] = mapped_column(String(500), nullable=True)
     driver_advice: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class TachoState(Base):
@@ -167,6 +169,22 @@ class TachoState(Base):
     day_key: Mapped[str] = mapped_column(String(10), default="")
     week_key: Mapped[str] = mapped_column(String(10), default="")
     fortnight_key: Mapped[str] = mapped_column(String(10), default="")
+
+
+class TachoSample(Base):
+    __tablename__ = "tacho_samples"
+    __table_args__ = (UniqueConstraint("driver_id", "recorded_at", name="uq_tacho_sample"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    driver_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("drivers.id"), index=True)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    source: Mapped[str] = mapped_column(String(20), default="tahmini")
+    continuous_min: Mapped[int] = mapped_column(default=0)
+    daily_min: Mapped[int] = mapped_column(default=0)
+    weekly_min: Mapped[int] = mapped_column(default=0)
+    fortnight_min: Mapped[int] = mapped_column(default=0)
+    extensions_used: Mapped[int] = mapped_column(default=0)
 
 
 class Alert(Base):
@@ -214,6 +232,7 @@ class SmsOutbox(Base):
     job_id: Mapped[str | None] = mapped_column(String(40), nullable=True)
     parts: Mapped[int] = mapped_column(default=1)
     last_error: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
 
 class RoadCache(Base):
@@ -225,3 +244,87 @@ class RoadCache(Base):
     quality: Mapped[str] = mapped_column(String(20))
     toll_try: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     toll_state: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    fetched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    tries: Mapped[int] = mapped_column(default=0)
+
+
+class RoutesUsage(Base):
+    __tablename__ = "routes_usage"
+
+    day: Mapped[str] = mapped_column(String(10), primary_key=True)
+    calls: Mapped[int] = mapped_column(default=0)
+    cache_hits: Mapped[int] = mapped_column(default=0)
+    approved_extra: Mapped[int] = mapped_column(default=0)
+    blocked: Mapped[int] = mapped_column(default=0)
+
+
+class VehicleMaintenance(Base):
+    __tablename__ = "vehicle_maintenances"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    vehicle_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("vehicles.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(20))
+    happened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    odometer_km: Mapped[Decimal | None] = mapped_column(Numeric(12, 1), nullable=True)
+    cost_try: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    workshop: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    source: Mapped[str] = mapped_column(String(20), default="manual")
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+
+
+class VehicleTireEvent(Base):
+    __tablename__ = "vehicle_tire_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    vehicle_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("vehicles.id"), index=True)
+    position: Mapped[str] = mapped_column(String(20))
+    event: Mapped[str] = mapped_column(String(20))
+    brand_size: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    odometer_km: Mapped[Decimal | None] = mapped_column(Numeric(12, 1), nullable=True)
+    happened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    source: Mapped[str] = mapped_column(String(20), default="manual")
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+
+
+class VehicleFuelFill(Base):
+    __tablename__ = "vehicle_fuel_fills"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    vehicle_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("vehicles.id"), index=True)
+    happened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    liters: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    amount_try: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    odometer_km: Mapped[Decimal | None] = mapped_column(Numeric(12, 1), nullable=True)
+    station: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    source: Mapped[str] = mapped_column(String(20), default="manual")
+    note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+
+
+class VehicleFuelSample(Base):
+    __tablename__ = "vehicle_fuel_samples"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    vehicle_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("vehicles.id"), index=True)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    level_pct: Mapped[Decimal | None] = mapped_column(Numeric(6, 2), nullable=True)
+    level_liters: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    odometer_km: Mapped[Decimal | None] = mapped_column(Numeric(12, 1), nullable=True)
+
+
+class VehicleDriverStint(Base):
+    __tablename__ = "vehicle_driver_stints"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    vehicle_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("vehicles.id"), index=True)
+    driver_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("drivers.id"), index=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    source: Mapped[str] = mapped_column(String(20), default="manual")

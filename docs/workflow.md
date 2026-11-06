@@ -26,8 +26,8 @@ flowchart LR
   end
   subgraph Firma["Sefer kabuğu"]
     O[Özet]
-    G[Gidiş kuyruğu]
-    D[Dönüş havuzu]
+    G[Gidiş Planlama]
+    D[Dönüş Planlama]
     T[Takip]
     A[Araçlar]
     S[Şoförler]
@@ -59,9 +59,9 @@ usecaseDiagram
 
   package Sefer {
     usecase UC3 as "Özet ve grafikleri oku"
-    usecase UC4 as "Gidiş kuyruğunu yönet"
+    usecase UC4 as "Gidiş Planlamanu yönet"
     usecase UC5 as "Gidiş ata"
-    usecase UC6 as "Dönüş havuzunu yönet"
+    usecase UC6 as "Dönüş Planlamanu yönet"
     usecase UC7 as "Dönüş hesapla / onayla"
     usecase UC8 as "Canlı takip izle"
     usecase UC9 as "Bildirimleri oku / görüldü"
@@ -107,8 +107,8 @@ flowchart TD
   Pull -->|Evet| Arvento[POST /integrations/telematics/pull]
   Arvento --> Ozet
   Pull -->|Hayır| Branch{Ne yapılacak?}
-  Branch --> Gidis[Gidiş kuyruğu]
-  Branch --> Donus[Dönüş havuzu]
+  Branch --> Gidis[Gidiş Planlama]
+  Branch --> Donus[Dönüş Planlama]
   Branch --> Takip[Takip haritası]
   Branch --> Uyari[Bildirimler]
   Gidis --> GidisIs[Ekle / Excel / Ata / Çıkar]
@@ -124,7 +124,7 @@ flowchart TD
 ```mermaid
 sequenceDiagram
   actor Ops as Operasyoncu
-  participant UI as Gidiş kuyruğu
+  participant UI as Gidiş Planlama
   participant API as API
   participant DB as Veri
   participant SMS as Netgsm
@@ -171,7 +171,7 @@ stateDiagram-v2
 ```mermaid
 sequenceDiagram
   actor Ops as Operasyoncu
-  participant UI as Dönüş havuzu
+  participant UI as Dönüş Planlama
   participant API as API
   participant Solver as OR-Tools
   participant SMS as Netgsm

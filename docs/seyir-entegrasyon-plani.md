@@ -89,11 +89,14 @@ Sonraki faz: raporlar, bölge, navigasyon mesajı, Pvt_* sürücü CRUD, paylaş
 | `speed` | `speed_kmh` |
 | `angle` | `course` |
 | `data_time` | `recorded_at` (ofsetli ISO → UTC) |
-| `total_km` | `odometer_km` |
-| `driver_key` | `Driver.card_id` eşlemesi |
+| `total_km` | `odometer_km` (`VehiclePosition`) |
+| `driver_key` | `Driver.card_id` eşlemesi; değişince `vehicle_driver_stints` |
 | `driver` | Ad ile tekil eşleşme yedek |
+| `fuel_level` / `tank_level` / `fuel` (opsiyonel) | `vehicle_fuel_samples`; ≥8 puan ani yükselişte `vehicle_fuel_fills` `source=seyir` |
 | `is_vehicle_running` | Kontak (saklanırsa; plan kuralı şimdilik konum tazeliğine bakar) |
 | `is_gps_active` | 0 olsa da lat/lng yazılır (doküman: son aktif konum); tazelik `data_time` ile |
+
+Depo alanı pakette yoksa yakıt örneği yazılmaz; bakım ve lastik yalnız elle girilir. Ayrı SOAP yakıt/lastik raporu bu sürümde yok.
 
 Eşleşmeyen plaka/cihaz `unmatched` listesine düşer; sessizce atılmaz.
 

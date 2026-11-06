@@ -54,7 +54,7 @@ Gidiş yükleri firmanın elindedir ve toplu girilir. Dönüş yükü ise havuzd
 | --- | --- |
 | Platform yöneticisi | Firma açar, firmayı askıya alır, sistem sağlığını görür. Firma operasyon verisini günlük iş için kullanmaz. |
 | Firma yöneticisi | Kullanıcı, araç, sürücü, dorse tipi, maliyet katsayısı ve entegrasyon hesabını yönetir. Yasal takograf sınırını gevşetemez. |
-| Operasyoncu | Gidiş yükünü içe aktarır, gidiş aracı atar, dönüş havuzunu izler, uyarıyı kapatır, hatalı tonajı düzeltir, iletilemeyen rota SMS’ini yeniden gönderir. |
+| Operasyoncu | Gidiş yükünü içe aktarır, gidiş aracı atar, Dönüş Planlamanu izler, uyarıyı kapatır, hatalı tonajı düzeltir, iletilemeyen rota SMS’ini yeniden gönderir. |
 | İzleyici | Plan, harita ve uyarıyı görür. Kayıt değiştirmez. |
 
 Bir kullanıcı ilk sürümde tek firmaya bağlıdır. Platform yöneticisi firma kullanıcısı değildir. Ekranların dökümü ve rolün sayfada ne yapacağı [arayüz planındadır](arayuz.md).
@@ -64,7 +64,7 @@ Bir kullanıcı ilk sürümde tek firmaya bağlıdır. Platform yöneticisi firm
 ### Gidiş
 
 1. Operasyoncu şablon dosyayı yükler.
-2. Sistem satırları doğrular, adresleri koordinata çevirir, yükü gidiş kuyruğuna alır.
+2. Sistem satırları doğrular, adresleri koordinata çevirir, yükü Gidiş Planlamana alır.
 3. Sistem, tonajı ve dorse tipi uyan, konumu işe yetişen ve takografı elveren araçları sıralar.
 4. Operasyoncu aracı seçer. Sefer bağlanır ve şoföre rota SMS’i gider.
 5. Araç yükleme noktasına gidene ve yükü teslim edene kadar yeni bir yük alamaz.
@@ -130,7 +130,7 @@ Bir kullanıcı ilk sürümde tek firmaya bağlıdır. Platform yöneticisi firm
 
 ### Gidiş planı
 
-- FR-5.1 Sistem, gidiş kuyruğundaki bir yük için planlanabilir araçları faydaya göre sıralar. Sıralama bilgi amaçlıdır; atamayı operasyoncu yapar.
+- FR-5.1 Sistem, Gidiş Planlamandaki bir yük için planlanabilir araçları faydaya göre sıralar. Sıralama bilgi amaçlıdır; atamayı operasyoncu yapar.
 - FR-5.2 Takografı, kapasitesi, dorse tipi veya zaman penceresi elvermeyen araç listede gerekçesiyle reddedilmiş olarak durur.
 - FR-5.3 Operasyoncu reddedilmiş bir aracı gerekçeyi aşarak seçemez.
 
@@ -201,7 +201,7 @@ Rota SMS’i Netgsm REST v2 ile gider: `POST https://api.netgsm.com.tr/sms/rest/
 
 - İçe aktarılan gidiş dosyasında geçerli satırların tamamı kuyruğa iner, hatalı satırın nedeni dosyada görünür.
 - Kapasiteyi, dorse tipini veya takografı aşan hiçbir çift atanamaz. Buna dönük denemeler otomatik testte kırmızı olur.
-- Dönüş havuzunda, aynı girdiyle tekrarlanan hesap aynı eşleşmeyi üretir.
+- Dönüş Planlamanda, aynı girdiyle tekrarlanan hesap aynı eşleşmeyi üretir.
 - Operasyoncu, atamanın boş kilometresini, net faydasını ve elenme gerekçesini ek bir hesap yapmadan okur.
 - Konum sinyali eşiği aşınca araç planlanabilir listesinden çıkar ve uyarı açılır.
 - İki firmanın verisi çapraz sorguda birbirine karışmaz.

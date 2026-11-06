@@ -30,7 +30,7 @@ Operasyoncu, Arvento’dan gelen konuma bakarak gidiş yükünü elle atar. Dön
 - Dönüşte tam eşleştirme, açıklama kartı ve yüzde 15 kararlılık eşiği.
 - Atama, güncelleme ve iptal SMS’i. Netgsm kabulü atamayı kilitler.
 - Uygulama içi uyarılar: mola ve sürüş sınırları, bayat sinyal, eksik telefon, SMS reddi, iletilemeyen SMS, yasal olarak bozulan plan, eksik kilometre maliyeti.
-- Operasyon ekranı sefer masasıdır: gidiş kuyruğu, harita, dönüş havuzu ve dosya paneli. Görsel kabuk ücretsiz Minimal’dır. Menü ve yetki değişmez. Platform yöneticisi bu masayı açamaz. Sayfa ve rol dökümü [arayüz planındadır](arayuz.md).
+- Operasyon ekranı sefer masasıdır: Gidiş Planlama, harita, Dönüş Planlama ve dosya paneli. Görsel kabuk ücretsiz Minimal’dır. Menü ve yetki değişmez. Platform yöneticisi bu masayı açamaz. Sayfa ve rol dökümü [arayüz planındadır](arayuz.md).
 
 ## 3. Yayında olmayan
 

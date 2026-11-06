@@ -29,10 +29,11 @@ Kullanıcıdan gelen kararlar. Değişirse önce burası değişir.
 | K-16 | Mola konumu önerilmez. Planlayıcı takograf kalan süresine göre sürücüye zaman tavsiyesi verir. |
 | K-17 | Routes API geçiş ücretine şimdilik güvenilir. Yetersiz çıkarsa sonra çözüm üretilir. |
 | K-18 | Planlama gidiş yükü tamamen boşaltıldıktan sonra başlar. Dönüş üste (Ordu gibi) bitecek şekilde planlanır. Son dönüş yükünü üste boşaltmak zorunlu değil. Yük boşaltılıp kârlı dönülmesi yeterli. |
-| K-19 | Yükler netleştikçe ve onaylanıp kilitlendikçe sürücüye SMS gider. Kilitsiz yükler öneri kalır. |
+| K-19 | Yükler netleştikçe sürücüye SMS gider. Kilit operatörün işidir: gidişte atama, dönüşte onay veya Kilitle. Sürücü kabulü ve Netgsm raporu kilit şartı değildir. Kilitsiz otomatik atama öneri gibi yeniden hesaplanabilir. |
 | K-20 | Gidiş planı Excel'i plaka, sürücü, çıkış zamanı, durak 1, durak 2 ve tahmini varışı taşır. Tır ataması dosyadan gelir. |
 | K-21 | Planlamada öncelik tasarruf ve takograf verimliliğidir. |
 | K-22 | Routes API'ye gereksiz para harcanmaz. Geçiş ücreti `toll_enabled` ile açılır, varsayılan kapalıdır. Zincir devam değerlendirmesi yaklaşık mesafeyle yapılır, Routes çağrısı yapmaz. Testler ağa çıkmaz. |
+| K-23 | Routes cevabı `road_cache`'te tutulur. Canlı araç konumu 5 km hücreye yuvarlanır. Google mesafe 90 gün, geçiş ücreti 30 gün sonra yenilenir. Yaklaşık kayıt artan aralıkla yeniden denenir. Günlük tavan 333 istektir (Routes Matrix Essentials aylık 10.000 ücretsiz kota / 30); üstü operatör onayıyla 333'er açılır. Aynı planlama turunda bacak bir kez ölçülür. Çözücü yalnızca yük, ayar veya 5 km hücre değişince çalışır; konum tikinde değil. Operatör kilidinde boş bacak canlı konumla bir kez hassas doğrulanır. |
 
 ## 2. Varsayımlar
 
@@ -76,7 +77,7 @@ Kapananlar: maliyet katsayıları (K-13), durak sayımı (K-5), yasal yük sın�
 
 ## 5. Uygulama durumu
 
-Yapıldı: tek yük zinciri (öneri ve rolling atama), `STOP_LIMIT`, `WINDOW`, üs noktası ve üse dönüş maliyeti, opt-in geçiş ücreti (Routes `TOLLS`, ağa çıkmadan test edildi), takograf simülasyonu ve sürücü tavsiyesi, ayar ve kart alanları.
+Yapıldı: tek yük zinciri (öneri ve rolling atama), `STOP_LIMIT`, `WINDOW`, üs noktası ve üse dönüş maliyeti, opt-in geçiş ücreti (Routes `TOLLS`, ağa çıkmadan test edildi), takograf simülasyonu ve sürücü tavsiyesi, ayar ve kart alanları, Routes cache (5 km hücre, TTL, yaklaşık yeniden deneme) ve günlük 333 tavan (ücretsiz kota) + onay.
 
 Yapılmadı: gidiş planı Excel şablonu (K-20) ve gidişte 2 durak doğrulaması, Arvento takograf adaptörü, Excel dışa aktarımda tavsiye, canlı Routes ile geçiş ücreti doğrulaması (para harcanmaması için).
 

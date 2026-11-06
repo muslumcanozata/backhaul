@@ -81,7 +81,7 @@ export function QueuePage({ direction }: { direction: "gidis" | "donus" }) {
     <Stack spacing={2}>
       <Card>
         <CardHeader
-          title={direction === "gidis" ? "Gidiş kuyruğu" : "Dönüş havuzu"}
+          title={direction === "gidis" ? "Gidiş Planlama" : "Dönüş Planlama"}
           subheader={direction === "gidis" ? "Planlanabilir ve atanmış gidişler" : "Navlunlu fırsatlar ve öneriler"}
           action={
             operate ? (
