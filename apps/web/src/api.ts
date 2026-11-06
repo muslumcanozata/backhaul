@@ -1,4 +1,11 @@
-export const API = "http://localhost:8000";
+function apiBase(): string {
+  const configured = import.meta.env.VITE_API_URL;
+  if (typeof configured === "string" && configured.length > 0) return configured.replace(/\/$/, "");
+  if (import.meta.env.DEV) return "http://localhost:8000";
+  return "";
+}
+
+export const API = apiBase();
 
 function detailOf(body: unknown): string {
   if (!body || typeof body !== "object" || !("detail" in body)) return "İstek tamamlanamadı";

@@ -4,6 +4,13 @@ import { VEHICLE_STATE_LABEL, liveState, type VehicleState } from "./labels";
 import { useSession } from "./session";
 import type { LiveVehicle } from "./types";
 
+function liveSocketUrl(token: string): string {
+  const query = `/live?token=${encodeURIComponent(token)}`;
+  if (API) return `${API.replace(/^http/, "ws")}${query}`;
+  const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${proto}//${window.location.host}${query}`;
+}
+
 export function useLiveVehicles(staleMinutes: number) {
   const { token } = useSession();
   const [vehicles, setVehicles] = useState<LiveVehicle[]>([]);
@@ -21,7 +28,7 @@ export function useLiveVehicles(staleMinutes: number) {
     let retry = 0;
 
     function connect() {
-      const url = `${API.replace(/^http/, "ws")}/live?token=${encodeURIComponent(token)}`;
+      const url = liveSocketUrl(token);
       socket = new WebSocket(url);
       socket.onopen = () => setLink("Canlı");
       socket.onmessage = (event) => {
