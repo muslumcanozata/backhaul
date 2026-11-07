@@ -2,13 +2,34 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from typing import Annotated
+
+import email_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
 from app.models import TRAILER_CATALOG
 
 
+# email-validator rejects ".local" even in test mode. The bootstrap admin uses it.
+if "local" in email_validator.SPECIAL_USE_DOMAIN_NAMES:
+    email_validator.SPECIAL_USE_DOMAIN_NAMES.remove("local")
+
+
+def _app_email(value: str) -> str:
+    domain = value.rsplit("@", 1)[-1].lower().rstrip(".")
+    local_domain = domain == "local" or domain.endswith(".local")
+    try:
+        info = email_validator.validate_email(value, check_deliverability=not local_domain)
+    except email_validator.EmailNotValidError as exc:
+        raise ValueError(str(exc)) from exc
+    return info.normalized
+
+
+AppEmail = Annotated[str, AfterValidator(_app_email)]
+
+
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: AppEmail
     password: str
 
 
@@ -21,7 +42,7 @@ class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
-    email: EmailStr
+    email: AppEmail
     role: str
     tenant_id: UUID | None
     active: bool = True
@@ -45,7 +66,7 @@ class TenantOut(BaseModel):
 
 
 class UserCreate(BaseModel):
-    email: EmailStr
+    email: AppEmail
     password: str = Field(min_length=8, max_length=200)
     role: str
 

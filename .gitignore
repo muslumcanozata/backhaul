@@ -18,3 +18,4 @@ build/
 *.log
 *.db
 apps/api/.venv/
+.idea/
