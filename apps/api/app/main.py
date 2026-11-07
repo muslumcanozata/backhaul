@@ -16,7 +16,18 @@ log = logging.getLogger("backhaul.sms")
 
 def build_state() -> AppState:
     settings = get_settings()
-    factory = init_db(settings)
+    if settings.supabase_enabled:
+        from app.supabase_client import require_supabase
+
+        require_supabase(settings)
+    try:
+        factory = init_db(settings)
+    except BootError:
+        raise
+    except Exception as exc:
+        if settings.supabase_enabled:
+            raise BootError(f"Supabase şema kurulamadı: {exc}") from exc
+        raise
     return AppState(settings=settings, factory=factory)
 
 
@@ -100,7 +111,12 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Backhaul", version="0.1.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+        allow_origins=[
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://backhaul.odco.tech",
+            "https://backhaul.odco.tech",
+        ],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

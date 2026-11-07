@@ -11,7 +11,9 @@ def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
-def verify_password(password: str, password_hash: str) -> bool:
+def verify_password(password: str, password_hash: str | None) -> bool:
+    if not password_hash:
+        return False
     return bcrypt.checkpw(password.encode(), password_hash.encode())
 
 
@@ -22,8 +24,16 @@ def create_token(settings: Settings, user_id: UUID, tenant_id: UUID | None, role
         "role": role,
         "exp": datetime.now(UTC) + timedelta(minutes=settings.token_ttl_minutes),
     }
-    return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
+    return jwt.encode(payload, settings.token_secret, algorithm="HS256")
 
 
 def decode_token(settings: Settings, token: str) -> dict:
-    return jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])
+    options = {"require": ["exp", "sub"]}
+    kwargs: dict = {
+        "algorithms": ["HS256"],
+        "options": options,
+    }
+    if settings.supabase_enabled:
+        kwargs["audience"] = "authenticated"
+        kwargs["issuer"] = f"{settings.supabase_url.rstrip('/')}/auth/v1"
+    return jwt.decode(token, settings.token_secret, **kwargs)

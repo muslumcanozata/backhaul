@@ -56,7 +56,7 @@ flowchart LR
   worker --> db
 ```
 
-Web, sağlayıcıya ve veritabanına doğrudan gitmez. İşleyici her işi tek bir `tenant_id` ile çalıştırır. O firmanın Arvento, Seyir veya Netgsm sırrını yükler, iş bitince bırakır. Bir çevrimde iki firmanın hesabı aynı istekte kullanılmaz. Eşleştirme ve rota SMS’i de işleyicidedir. API, sonucu okur ve operasyoncunun onayını, iptalini, dosya yükünü ve yeniden gönderimini kabul eder.
+Web, Arvento / Seyir / Netgsm / Google’a ve tablo sorgularına doğrudan gitmez. Giriş API üzerinden Supabase Auth’a bağlanır; canlı harita yalnızca firmanın Realtime broadcast kanalına abone olur (`tenant:<id>`). İşleyici her işi tek bir `tenant_id` ile çalıştırır. O firmanın Arvento, Seyir veya Netgsm sırrını yükler, iş bitince bırakır. Bir çevrimde iki firmanın hesabı aynı istekte kullanılmaz. Eşleştirme ve rota SMS’i de işleyicidedir. API, sonucu okur ve operasyoncunun onayını, iptalini, dosya yükünü ve yeniden gönderimini kabul eder. Veritabanı Supabase Postgres’tir; `DATABASE_URL` pooler bağlantısıdır.
 
 ### Pod biçimi
 
