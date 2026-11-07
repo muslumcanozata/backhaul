@@ -14,7 +14,13 @@ class Base(DeclarativeBase):
 
 def make_engine(database_url: str):
     if not database_url.startswith("sqlite"):
-        return create_engine(database_url)
+        # Supabase transaction pooler (6543) ile hazırlıklı ifade kullanma.
+        return create_engine(
+            database_url,
+            pool_pre_ping=True,
+            pool_size=5,
+            max_overflow=10,
+        )
     # Bellek veritabanı tek bağlantıda kalır. Dosya veritabanı eşzamanlı istekte
     # ayrı bağlantı kullanır; tek bağlantı satırları birbirine karıştırır.
     memory = database_url in {"sqlite://", "sqlite:///:memory:"} or ":memory:" in database_url
@@ -151,22 +157,47 @@ def _ensure_dedicated_tenant(factory: sessionmaker[Session], settings: Settings)
 
 
 def _ensure_bootstrap_admin(factory: sessionmaker[Session], settings: Settings) -> None:
+    from uuid import uuid4
+
     from app.models import User
     from app.security import hash_password
+    from app.supabase_client import SupabaseError, create_auth_user, find_auth_user_id
 
     if not settings.bootstrap_admin_email or not settings.bootstrap_admin_password:
         return
     with factory() as db:
         exists = db.query(User).filter(User.email == settings.bootstrap_admin_email).one_or_none()
-        if exists is None:
+        if exists is not None:
+            return
+        if settings.supabase_enabled:
+            try:
+                auth_id = find_auth_user_id(settings, settings.bootstrap_admin_email)
+                if auth_id is None:
+                    auth_id = create_auth_user(
+                        settings,
+                        settings.bootstrap_admin_email,
+                        settings.bootstrap_admin_password,
+                    )
+            except SupabaseError as exc:
+                raise RuntimeError(str(exc)) from exc
             db.add(
                 User(
+                    id=auth_id,
+                    email=settings.bootstrap_admin_email,
+                    password_hash=None,
+                    role="platform_admin",
+                )
+            )
+        else:
+            db.add(
+                User(
+                    id=uuid4(),
                     email=settings.bootstrap_admin_email,
                     password_hash=hash_password(settings.bootstrap_admin_password),
                     role="platform_admin",
                 )
             )
-            db.commit()
+        db.commit()
 
 
 def session_scope(factory: sessionmaker[Session]) -> Generator[Session, None, None]:

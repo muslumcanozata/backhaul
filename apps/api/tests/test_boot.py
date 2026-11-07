@@ -32,3 +32,32 @@ def test_dedicated_pod_accepts_uuid() -> None:
             netgsm_usercode="8500000000",
         )
     )
+
+
+def test_supabase_requires_keys_and_postgres() -> None:
+    with pytest.raises(BootError, match="SUPABASE_ANON_KEY"):
+        validate_boot(
+            _settings(
+                supabase_url="https://ipmejpxeywneeaabvqmj.supabase.co",
+                database_url="postgresql+psycopg://u:p@localhost/db",
+            )
+        )
+    with pytest.raises(BootError, match="Postgres"):
+        validate_boot(
+            _settings(
+                supabase_url="https://ipmejpxeywneeaabvqmj.supabase.co",
+                supabase_anon_key="anon",
+                supabase_service_role_key="service",
+                supabase_jwt_secret="jwt-secret-at-least-16",
+                database_url="sqlite:///./x.db",
+            )
+        )
+    validate_boot(
+        _settings(
+            supabase_url="https://ipmejpxeywneeaabvqmj.supabase.co",
+            supabase_anon_key="anon",
+            supabase_service_role_key="service",
+            supabase_jwt_secret="jwt-secret-at-least-16",
+            database_url="postgresql+psycopg://u:p@localhost/db",
+        )
+    )

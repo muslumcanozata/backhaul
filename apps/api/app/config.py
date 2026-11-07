@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     token_ttl_minutes: int = 720
     bootstrap_admin_email: str | None = None
     bootstrap_admin_password: str | None = None
+    supabase_url: str | None = None
+    supabase_anon_key: str | None = None
+    supabase_service_role_key: str | None = None
+    supabase_jwt_secret: str | None = None
     netgsm_usercode: str | None = None
     netgsm_password: str | None = None
     netgsm_msgheader: str | None = None
@@ -54,6 +58,10 @@ class Settings(BaseSettings):
         "bootstrap_admin_email",
         "bootstrap_admin_password",
         "google_maps_server_key",
+        "supabase_url",
+        "supabase_anon_key",
+        "supabase_service_role_key",
+        "supabase_jwt_secret",
         *CUSTOMER_SECRET_FIELDS,
         mode="before",
     )
@@ -63,13 +71,37 @@ class Settings(BaseSettings):
             return None
         return value
 
+    @property
+    def supabase_enabled(self) -> bool:
+        return bool(self.supabase_url)
+
+    @property
+    def token_secret(self) -> str:
+        if self.supabase_enabled and self.supabase_jwt_secret:
+            return self.supabase_jwt_secret
+        return self.jwt_secret
+
 
 def validate_boot(settings: Settings) -> None:
     if settings.deployment_mode not in {"shared", "dedicated"}:
         raise BootError("DEPLOYMENT_MODE shared veya dedicated olmalı")
     if len(settings.secrets_key) < 16:
         raise BootError("SECRETS_KEY en az 16 karakter olmalı")
-    if len(settings.jwt_secret) < 16:
+    if settings.supabase_enabled:
+        missing = [
+            name
+            for name, value in (
+                ("SUPABASE_ANON_KEY", settings.supabase_anon_key),
+                ("SUPABASE_SERVICE_ROLE_KEY", settings.supabase_service_role_key),
+                ("SUPABASE_JWT_SECRET", settings.supabase_jwt_secret),
+            )
+            if not value
+        ]
+        if missing:
+            raise BootError("Supabase için eksik: " + ", ".join(missing))
+        if settings.database_url.startswith("sqlite"):
+            raise BootError("Supabase açıkken DATABASE_URL Postgres olmalı")
+    elif len(settings.jwt_secret) < 16:
         raise BootError("JWT_SECRET en az 16 karakter olmalı")
     filled = [name for name in CUSTOMER_SECRET_FIELDS if getattr(settings, name)]
     if settings.deployment_mode == "shared" and filled:

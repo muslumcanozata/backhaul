@@ -1,11 +1,16 @@
+import logging
 from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.live import hub
 from app.models import Driver, Load, Vehicle, VehiclePosition
+from app.supabase_client import SupabaseError, broadcast
+
+log = logging.getLogger("backhaul.live")
 
 
 def snapshot(db: Session, tenant_id: UUID) -> list[dict]:
@@ -14,7 +19,14 @@ def snapshot(db: Session, tenant_id: UUID) -> list[dict]:
 
 
 def announce(db: Session, tenant_id: UUID, vehicle: Vehicle) -> None:
-    hub.publish(tenant_id, {"type": "position", "vehicle": vehicle_point(db, vehicle)})
+    message = {"type": "position", "vehicle": vehicle_point(db, vehicle)}
+    hub.publish(tenant_id, message)
+    settings = get_settings()
+    if settings.supabase_enabled:
+        try:
+            broadcast(settings, tenant_id, "position", message)
+        except SupabaseError:
+            log.exception("Supabase Realtime yayın başarısız: %s", tenant_id)
 
 
 def vehicle_point(db: Session, vehicle: Vehicle) -> dict:

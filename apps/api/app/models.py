@@ -62,7 +62,8 @@ class User(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("tenants.id"), nullable=True)
     email: Mapped[str] = mapped_column(String(320), unique=True)
-    password_hash: Mapped[str] = mapped_column(String(200))
+    # Yerel oturumda bcrypt. Supabase Auth açıkken boş kalır; kimlik auth.users ile aynı UUID.
+    password_hash: Mapped[str | None] = mapped_column(String(200), nullable=True)
     role: Mapped[str] = mapped_column(String(32))
     active: Mapped[bool] = mapped_column(default=True)
 

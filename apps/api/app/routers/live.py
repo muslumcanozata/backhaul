@@ -1,16 +1,40 @@
 from uuid import UUID
 
 import jwt
-from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
-from app.deps import AppState
+from app.deps import AppState, get_current_user, get_db, get_state, require_operation_tenant
 from app.live import hub
 from app.models import User
 from app.security import decode_token
 from app.tracking import snapshot
 
 router = APIRouter(tags=["live"])
+
+
+@router.get("/live/snapshot")
+def live_snapshot(
+    tenant_id: UUID = Depends(require_operation_tenant),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+) -> dict:
+    return {"type": "snapshot", "vehicles": snapshot(db, tenant_id)}
+
+
+@router.get("/live/config")
+def live_config(
+    user: User = Depends(get_current_user),
+    state: AppState = Depends(get_state),
+) -> dict:
+    if user.role == "platform_admin" or user.tenant_id is None:
+        raise HTTPException(status_code=403, detail="Platform yöneticisi canlı haritayı açamaz")
+    return {
+        "supabase": state.settings.supabase_enabled,
+        "supabase_url": state.settings.supabase_url if state.settings.supabase_enabled else None,
+        "channel": f"tenant:{user.tenant_id}" if state.settings.supabase_enabled else None,
+        "anon_key": state.settings.supabase_anon_key if state.settings.supabase_enabled else None,
+    }
 
 
 @router.websocket("/live")

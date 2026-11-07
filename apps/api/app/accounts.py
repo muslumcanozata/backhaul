@@ -1,21 +1,44 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.config import Settings, get_settings
 from app.models import Tenant, User
 from app.security import hash_password
+from app.supabase_client import SupabaseError, create_auth_user, set_auth_user_active
 
 TENANT_ROLES = {"tenant_admin", "dispatcher", "viewer"}
 STAFF_ROLES = {"dispatcher", "viewer"}
 
 
-def create_tenant_user(db: Session, tenant_id: UUID, email: str, password: str, role: str) -> User:
+def create_tenant_user(
+    db: Session,
+    tenant_id: UUID,
+    email: str,
+    password: str,
+    role: str,
+    settings: Settings | None = None,
+) -> User:
     if db.get(Tenant, tenant_id) is None:
         raise HTTPException(status_code=404, detail="Firma yok")
     if db.query(User).filter(User.email == email).one_or_none():
         raise HTTPException(status_code=409, detail="E-posta kullanılıyor")
-    user = User(tenant_id=tenant_id, email=email, password_hash=hash_password(password), role=role)
+    settings = settings or get_settings()
+    if settings.supabase_enabled:
+        try:
+            auth_id = create_auth_user(settings, email, password)
+        except SupabaseError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        user = User(id=auth_id, tenant_id=tenant_id, email=email, password_hash=None, role=role)
+    else:
+        user = User(
+            id=uuid4(),
+            tenant_id=tenant_id,
+            email=email,
+            password_hash=hash_password(password),
+            role=role,
+        )
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -30,6 +53,7 @@ def update_tenant_user(
     active: bool | None,
     *,
     allow_admin_role: bool,
+    settings: Settings | None = None,
 ) -> User:
     if target.tenant_id is None or (actor.tenant_id is not None and target.tenant_id != actor.tenant_id):
         raise HTTPException(status_code=404, detail="Kullanıcı yok")
@@ -44,6 +68,12 @@ def update_tenant_user(
         target.role = role
     if active is not None:
         target.active = active
+        settings = settings or get_settings()
+        if settings.supabase_enabled:
+            try:
+                set_auth_user_active(settings, target.id, active)
+            except SupabaseError as exc:
+                raise HTTPException(status_code=502, detail=str(exc)) from exc
     db.commit()
     db.refresh(target)
     return target
