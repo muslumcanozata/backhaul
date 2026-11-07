@@ -16,7 +16,10 @@ def test_login_uses_supabase_token(tmp_path, monkeypatch):
     monkeypatch.setenv("TELEMATICS_POLL_SECONDS", "0")
     monkeypatch.setenv("BOOTSTRAP_ADMIN_EMAIL", "admin@example.com")
     monkeypatch.setenv("BOOTSTRAP_ADMIN_PASSWORD", "admin-pass-1")
-    monkeypatch.delenv("SUPABASE_URL", raising=False)
+    monkeypatch.setenv("SUPABASE_URL", "")
+    monkeypatch.setenv("SUPABASE_ANON_KEY", "")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    monkeypatch.setenv("SUPABASE_JWT_SECRET", "")
     get_settings.cache_clear()
 
     with TestClient(app) as client:

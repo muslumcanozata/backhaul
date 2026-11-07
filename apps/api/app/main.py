@@ -16,7 +16,18 @@ log = logging.getLogger("backhaul.sms")
 
 def build_state() -> AppState:
     settings = get_settings()
-    factory = init_db(settings)
+    if settings.supabase_enabled:
+        from app.supabase_client import require_supabase
+
+        require_supabase(settings)
+    try:
+        factory = init_db(settings)
+    except BootError:
+        raise
+    except Exception as exc:
+        if settings.supabase_enabled:
+            raise BootError(f"Supabase şema kurulamadı: {exc}") from exc
+        raise
     return AppState(settings=settings, factory=factory)
 
 

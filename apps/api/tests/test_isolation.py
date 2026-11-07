@@ -79,6 +79,10 @@ def test_dedicated_pod_rejects_other_tenant(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("TENANT_ID", tenant_id)
     monkeypatch.setenv("BOOTSTRAP_ADMIN_EMAIL", "admin@example.com")
     monkeypatch.setenv("BOOTSTRAP_ADMIN_PASSWORD", "admin-pass-1")
+    monkeypatch.setenv("SUPABASE_URL", "")
+    monkeypatch.setenv("SUPABASE_ANON_KEY", "")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    monkeypatch.setenv("SUPABASE_JWT_SECRET", "")
     get_settings.cache_clear()
     with TestClient(app) as client:
         admin = _login(client, "admin@example.com", "admin-pass-1")

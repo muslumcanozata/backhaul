@@ -7,13 +7,44 @@ from uuid import UUID
 
 import httpx
 
-from app.config import Settings
+from app.config import BootError, Settings
 
 
 class SupabaseError(RuntimeError):
     def __init__(self, message: str, status_code: int | None = None) -> None:
         super().__init__(message)
         self.status_code = status_code
+
+
+def require_supabase(settings: Settings) -> None:
+    """Auth ve Postgres erişilemezse BootError — süreç açılmaz."""
+    if not settings.supabase_enabled:
+        return
+    try:
+        response = httpx.get(
+            f"{_base(settings)}/auth/v1/admin/users",
+            headers=_headers(settings, service=True),
+            params={"page": 1, "per_page": 1},
+            timeout=10.0,
+        )
+    except Exception as exc:
+        raise BootError(f"Supabase Auth'a bağlanılamadı: {exc}") from exc
+    if response.status_code >= 400:
+        raise BootError(f"Supabase Auth yanıt vermedi: HTTP {response.status_code}")
+
+    try:
+        from sqlalchemy import create_engine, text
+
+        engine = create_engine(settings.database_url, pool_pre_ping=True)
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("select 1"))
+        finally:
+            engine.dispose()
+    except BootError:
+        raise
+    except Exception as exc:
+        raise BootError(f"Supabase Postgres'e bağlanılamadı: {exc}") from exc
 
 
 def _base(settings: Settings) -> str:
