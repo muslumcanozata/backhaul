@@ -7,7 +7,44 @@ services:
       POSTGRES_DB: backhaul
     ports:
       - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
   redis:
     image: redis:7
     ports:
       - "6379:6379"
+
+  api:
+    build:
+      context: ./apps/api
+    environment:
+      DEPLOYMENT_MODE: shared
+      DATABASE_URL: sqlite:////data/backhaul.db
+      JWT_SECRET: dev-only-change-me-please
+      SECRETS_KEY: dev-only-secrets-key
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@backhaul.local}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-backhaul-admin}
+      TELEMATICS_POLL_SECONDS: ${TELEMATICS_POLL_SECONDS:-30}
+    volumes:
+      - api-data:/data
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 20s
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  api-data:
+  postgres-data:
