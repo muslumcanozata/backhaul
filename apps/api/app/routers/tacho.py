@@ -111,4 +111,7 @@ def _row(db: Session, settings: TenantSettings, driver: Driver) -> TachoDriverOu
         extensions_limit=limits.extensions,
         warning=warning,
         recorded_at=latest.recorded_at if latest else None,
+        activity_status=state.activity_status if state else None,
+        daily_rest_remain_min=state.daily_rest_remain_min if state else None,
+        weekly_rest_remain_min=state.weekly_rest_remain_min if state else None,
     )

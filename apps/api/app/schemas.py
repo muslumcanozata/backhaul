@@ -14,12 +14,22 @@ from app.models import TRAILER_CATALOG
 if "local" in email_validator.SPECIAL_USE_DOMAIN_NAMES:
     email_validator.SPECIAL_USE_DOMAIN_NAMES.remove("local")
 
+# example.com has a null MX on purpose. Login and tests still use it.
+_RESERVED_EMAIL_DOMAINS = {"example.com", "example.org", "example.net"}
+
+
+def _skip_deliverability(domain: str) -> bool:
+    if domain == "local" or domain.endswith(".local"):
+        return True
+    if domain in _RESERVED_EMAIL_DOMAINS:
+        return True
+    return any(domain.endswith("." + reserved) for reserved in _RESERVED_EMAIL_DOMAINS)
+
 
 def _app_email(value: str) -> str:
     domain = value.rsplit("@", 1)[-1].lower().rstrip(".")
-    local_domain = domain == "local" or domain.endswith(".local")
     try:
-        info = email_validator.validate_email(value, check_deliverability=not local_domain)
+        info = email_validator.validate_email(value, check_deliverability=not _skip_deliverability(domain))
     except email_validator.EmailNotValidError as exc:
         raise ValueError(str(exc)) from exc
     return info.normalized
@@ -370,6 +380,9 @@ class TachoDriverOut(BaseModel):
     extensions_limit: int
     warning: bool
     recorded_at: datetime | None
+    activity_status: str | None = None
+    daily_rest_remain_min: int | None = None
+    weekly_rest_remain_min: int | None = None
 
 
 class TachoDriverDetailOut(TachoDriverOut):

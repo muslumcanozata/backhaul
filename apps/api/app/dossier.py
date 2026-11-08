@@ -25,6 +25,13 @@ def bind_driver(
     current = vehicle.driver_id
     if current == driver_id:
         return
+    if driver_id is not None:
+        others = db.query(Vehicle).filter(Vehicle.driver_id == driver_id, Vehicle.id != vehicle.id).all()
+        for other in others:
+            _close_open_stint(db, other.id, stamp)
+            other.driver_id = None
+        if others:
+            db.flush()
     _close_open_stint(db, vehicle.id, stamp)
     vehicle.driver_id = driver_id
     if driver_id is not None:

@@ -17,6 +17,8 @@ from app.tracking import announce
 
 SEYIR_URL = "https://ws.seyirmobil.com/LocationService.asmx"
 NAMESPACE = "http://tempuri.org/"
+# Seyir telefon döndürmez. 5 ile başlamayan numara SMS'e çıkmaz.
+UNKNOWN_PHONE = "0000000000"
 
 
 class SeyirError(RuntimeError):
@@ -55,6 +57,9 @@ class TachoPacket:
     remaining_drive_period: int | None
     not_used_drive_period: int | None
     remaining_long_drive_count: int | None
+    activity_status: str | None
+    daily_rest_remain_min: int | None
+    weekly_rest_remain_min: int | None
 
 
 def configured(db: Session, tenant_id, settings: Settings) -> bool:
@@ -171,6 +176,9 @@ def parse_tacho(root: ET.Element) -> list[TachoPacket]:
                 remaining_drive_period=_period(fields.get("remaining_drive_period")),
                 not_used_drive_period=_period(fields.get("not_used_drive_period")),
                 remaining_long_drive_count=_int(fields.get("remaining_long_drive_count")),
+                activity_status=(fields.get("current_status") or "").strip() or None,
+                daily_rest_remain_min=_period(fields.get("remaining_daily_rest")),
+                weekly_rest_remain_min=_period(fields.get("remaining_weekly_rest")),
             )
         )
     return rows
@@ -185,14 +193,11 @@ def apply_packets(db: Session, tenant_id, packets: list[Packet]) -> tuple[int, l
     changed: list[Vehicle] = []
     unmatched: list[str] = []
     for packet in packets:
-        vehicle = None
-        if packet.plate:
-            vehicle = by_plate.get(_plate_key(packet.plate))
-        if vehicle is None and packet.node:
-            vehicle = by_node.get(packet.node)
+        vehicle = _vehicle_for_packet(db, tenant_id, packet, by_plate, by_node)
         if vehicle is None:
             unmatched.append(packet.plate or packet.node or "")
             continue
+        _match_driver(db, vehicle, drivers, packet)
         latest = (
             db.query(VehiclePosition)
             .filter(VehiclePosition.vehicle_id == vehicle.id)
@@ -221,7 +226,6 @@ def apply_packets(db: Session, tenant_id, packets: list[Packet]) -> tuple[int, l
             level_liters=packet.fuel_level_liters,
             odometer_km=packet.odometer_km,
         )
-        _match_driver(db, vehicle, drivers, packet)
         settings = db.get(TenantSettings, tenant_id)
         if settings is not None:
             sync_alerts(db, vehicle, settings)
@@ -233,16 +237,41 @@ def apply_packets(db: Session, tenant_id, packets: list[Packet]) -> tuple[int, l
     return updated, unmatched
 
 
+def _vehicle_for_packet(db: Session, tenant_id, packet: Packet, by_plate: dict[str, Vehicle], by_node: dict[str, Vehicle]) -> Vehicle | None:
+    plate = _plate_key(packet.plate) if packet.plate else ""
+    vehicle = by_plate.get(plate) if plate else None
+    if vehicle is None and packet.node:
+        vehicle = by_node.get(packet.node)
+    if vehicle is None and not plate:
+        return None
+    if vehicle is None:
+        vehicle = Vehicle(
+            tenant_id=tenant_id,
+            plate=plate,
+            capacity_tons=Decimal("24"),
+            trailer_type="tenteli",
+            device_id=packet.node,
+        )
+        db.add(vehicle)
+        db.flush()
+        by_plate[plate] = vehicle
+    elif packet.node and not vehicle.device_id:
+        vehicle.device_id = packet.node
+    if packet.node:
+        by_node[packet.node] = vehicle
+    return vehicle
+
+
 def apply_tacho(db: Session, tenant_id, packets: list[TachoPacket], settings: TenantSettings) -> int:
     drivers = db.query(Driver).filter(Driver.tenant_id == tenant_id).all()
-    by_card = {driver.card_id: driver for driver in drivers if driver.card_id}
     vehicles = db.query(Vehicle).filter(Vehicle.tenant_id == tenant_id).all()
     by_plate = {_plate_key(vehicle.plate): vehicle for vehicle in vehicles}
     updated = 0
+    latest_plate: dict = {}
     # Seyir her sürücü kartı için geçmiş kayıt da döner. Eskiden yeniye işlenir, en yeni kayıt kalır.
     ordered = sorted(packets, key=lambda item: item.recorded_at or datetime.min.replace(tzinfo=UTC))
     for packet in ordered:
-        driver = by_card.get(packet.driver_code or "")
+        driver = _ensure_driver(db, tenant_id, drivers, name=packet.driver_name, card_id=packet.driver_code)
         if driver is None and not packet.driver_code and packet.plate:
             vehicle = by_plate.get(_plate_key(packet.plate))
             if vehicle is not None and vehicle.driver_id is not None:
@@ -276,11 +305,24 @@ def apply_tacho(db: Session, tenant_id, packets: list[TachoPacket], settings: Te
         state.fortnight_min = max(0, packet.total_double_weekly_drive or 0)
         state.continuous_min = _used(settings.tacho_continuous_min, remaining_continuous)
         state.extensions_used = _used(settings.tacho_extensions, packet.remaining_long_drive_count)
+        if packet.activity_status is not None:
+            state.activity_status = packet.activity_status
+        if packet.daily_rest_remain_min is not None:
+            state.daily_rest_remain_min = max(0, packet.daily_rest_remain_min)
+        if packet.weekly_rest_remain_min is not None:
+            state.weekly_rest_remain_min = max(0, packet.weekly_rest_remain_min)
         record_sample(db, state, packet.recorded_at)
         updated += 1
-        vehicle = next((item for item in vehicles if item.driver_id == driver.id), None)
-        if vehicle is not None:
-            sync_alerts(db, vehicle, settings)
+        if packet.plate and packet.recorded_at is not None:
+            previous = latest_plate.get(driver.id)
+            if previous is None or packet.recorded_at >= previous[0]:
+                latest_plate[driver.id] = (packet.recorded_at, packet.plate)
+    for driver_id, (stamp, plate) in sorted(latest_plate.items(), key=lambda item: item[1][0]):
+        vehicle = by_plate.get(_plate_key(plate))
+        if vehicle is None:
+            continue
+        bind_driver(db, vehicle, driver_id, source="seyir", at=stamp)
+        sync_alerts(db, vehicle, settings)
     db.flush()
     return updated
 
@@ -291,16 +333,32 @@ def _used(limit: int, remaining: int | None) -> int:
     return max(0, limit - remaining)
 
 
+def _ensure_driver(db: Session, tenant_id, drivers: list[Driver], *, name: str | None, card_id: str | None) -> Driver | None:
+    clean_name = (name or "").strip()
+    card = (card_id or "").strip() or None
+    if len(clean_name) < 2 and not card:
+        return None
+    if card:
+        matches = [driver for driver in drivers if driver.card_id == card]
+        if len(matches) == 1:
+            return matches[0]
+    if len(clean_name) >= 2:
+        matches = [driver for driver in drivers if fold(driver.name) == fold(clean_name)]
+        if len(matches) == 1:
+            if card and not matches[0].card_id:
+                matches[0].card_id = card
+            return matches[0]
+    if len(clean_name) < 2:
+        return None
+    driver = Driver(tenant_id=tenant_id, name=clean_name, phone=UNKNOWN_PHONE, card_id=card)
+    db.add(driver)
+    db.flush()
+    drivers.append(driver)
+    return driver
+
+
 def _match_driver(db: Session, vehicle: Vehicle, drivers: list[Driver], packet: Packet) -> None:
-    chosen: Driver | None = None
-    if packet.identity_number:
-        matches = [driver for driver in drivers if driver.card_id and driver.card_id == packet.identity_number]
-        if len(matches) == 1:
-            chosen = matches[0]
-    if chosen is None and packet.driver_name:
-        matches = [driver for driver in drivers if fold(driver.name) == fold(packet.driver_name or "")]
-        if len(matches) == 1:
-            chosen = matches[0]
+    chosen = _ensure_driver(db, vehicle.tenant_id, drivers, name=packet.driver_name, card_id=packet.identity_number)
     if chosen is None or vehicle.driver_id == chosen.id:
         return
     previous = db.query(Vehicle).filter(Vehicle.driver_id == chosen.id, Vehicle.id != vehicle.id).one_or_none()

@@ -20,6 +20,8 @@ def make_engine(database_url: str):
             pool_pre_ping=True,
             pool_size=5,
             max_overflow=10,
+            # Transaction pooler (6543) aynı prepared statement adını ikinci bağlantıda reddeder.
+            connect_args={"prepare_threshold": None},
         )
     # Bellek veritabanı tek bağlantıda kalır. Dosya veritabanı eşzamanlı istekte
     # ayrı bağlantı kullanır; tek bağlantı satırları birbirine karıştırır.
@@ -43,6 +45,7 @@ def init_db(settings: Settings) -> sessionmaker[Session]:
     _ensure_vehicle_driver_column(bind)
     _ensure_position_columns(bind)
     _ensure_tacho_columns(bind)
+    _ensure_tacho_state_columns(bind)
     if settings.deployment_mode == "dedicated":
         _ensure_dedicated_tenant(factory, settings)
     _ensure_bootstrap_admin(factory, settings)
@@ -143,6 +146,34 @@ def _add_missing(conn, table: str, columns: dict[str, str]) -> None:
     for column, ddl in columns.items():
         if column not in names:
             conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+
+
+def _ensure_tacho_state_columns(bind) -> None:
+    columns = {
+        "activity_status": "VARCHAR(40)",
+        "daily_rest_remain_min": "INTEGER",
+        "weekly_rest_remain_min": "INTEGER",
+    }
+    with bind.connect() as conn:
+        if bind.dialect.name == "sqlite":
+            _add_missing(conn, "tacho_states", columns)
+            conn.commit()
+            return
+        if bind.dialect.name != "postgresql":
+            return
+        existing = {
+            row[0]
+            for row in conn.exec_driver_sql(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_schema = current_schema() AND table_name = 'tacho_states'"
+            ).fetchall()
+        }
+        if not existing:
+            return
+        for column, ddl in columns.items():
+            if column not in existing:
+                conn.exec_driver_sql(f"ALTER TABLE tacho_states ADD COLUMN {column} {ddl}")
+        conn.commit()
 
 
 def _ensure_dedicated_tenant(factory: sessionmaker[Session], settings: Settings) -> None:

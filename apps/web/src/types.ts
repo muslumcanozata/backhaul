@@ -177,6 +177,9 @@ export type TachoDriver = {
   extensions_limit: number;
   warning: boolean;
   recorded_at: string | null;
+  activity_status: string | null;
+  daily_rest_remain_min: number | null;
+  weekly_rest_remain_min: number | null;
 };
 
 export type TachoSample = {

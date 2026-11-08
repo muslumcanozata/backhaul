@@ -62,3 +62,46 @@ def test_decode_supabase_shaped_token():
     )
     payload = decode_token(settings, token)
     assert payload["sub"] == user_id
+
+
+def test_decode_supabase_es256_token(monkeypatch):
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    from app.config import Settings
+
+    private_key = ec.generate_private_key(ec.SECP256R1())
+    settings = Settings(
+        deployment_mode="shared",
+        jwt_secret="local-jwt-secret!!!!",
+        secrets_key="test-secrets-key!!",
+        database_url="postgresql+psycopg://u:p@localhost/db",
+        supabase_url="https://ipmejpxeywneeaabvqmj.supabase.co",
+        supabase_anon_key="anon",
+        supabase_service_role_key="service",
+        supabase_jwt_secret="supabase-jwt-secret!!",
+    )
+    user_id = str(uuid4())
+    token = jwt.encode(
+        {
+            "sub": user_id,
+            "role": "authenticated",
+            "aud": "authenticated",
+            "iss": "https://ipmejpxeywneeaabvqmj.supabase.co/auth/v1",
+            "exp": 4102444800,
+        },
+        private_key,
+        algorithm="ES256",
+        headers={"kid": "test-key"},
+    )
+
+    class _Key:
+        key = private_key.public_key()
+
+    class _Client:
+        def get_signing_key_from_jwt(self, raw: str):
+            assert raw == token
+            return _Key()
+
+    monkeypatch.setattr("app.security._jwks_client", lambda url: _Client())
+    payload = decode_token(settings, token)
+    assert payload["sub"] == user_id
