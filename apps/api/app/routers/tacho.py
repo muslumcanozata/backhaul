@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
 from app.deps import get_db, require_operation_tenant
@@ -17,9 +18,11 @@ def list_tacho(tenant_id: UUID = Depends(require_operation_tenant), db: Session 
     if settings is None:
         raise HTTPException(status_code=404, detail="Firma ayarı yok")
     drivers = db.query(Driver).filter(Driver.tenant_id == tenant_id).order_by(Driver.name).all()
-    rows = [_row(db, settings, driver) for driver in drivers]
-    db.commit()
-    return rows
+    driver_ids = [driver.id for driver in drivers]
+    states = _states_by_driver(db, driver_ids)
+    vehicles = _vehicles_by_driver(db, tenant_id)
+    # Liste ekranı örnek zamanına bakmaz; örnek sorgusu detayda kalır.
+    return [_row_from(settings, driver, states.get(driver.id), vehicles.get(driver.id), None) for driver in drivers]
 
 
 @router.get("/tacho/{driver_id}", response_model=TachoDriverDetailOut)
@@ -32,8 +35,10 @@ def read_tacho(
     driver = db.get(Driver, driver_id)
     if settings is None or driver is None or driver.tenant_id != tenant_id:
         raise HTTPException(status_code=404, detail="Şoför yok")
-    row = _row(db, settings, driver)
-    db.commit()
+    state = db.get(TachoState, driver.id)
+    if state is not None:
+        ensure_sample(db, state)
+    vehicle = db.query(Vehicle).filter(Vehicle.driver_id == driver.id).one_or_none()
     samples = (
         db.query(TachoSample)
         .filter(TachoSample.driver_id == driver.id)
@@ -41,6 +46,9 @@ def read_tacho(
         .limit(200)
         .all()
     )
+    db.commit()
+    latest = samples[0] if samples else None
+    row = _row_from(settings, driver, state, vehicle, latest)
     return TachoDriverDetailOut(
         **row.model_dump(),
         samples=[
@@ -58,18 +66,49 @@ def read_tacho(
     )
 
 
-def _row(db: Session, settings: TenantSettings, driver: Driver) -> TachoDriverOut:
-    limits = limits_from(settings)
-    state = db.get(TachoState, driver.id)
-    if state is not None:
-        ensure_sample(db, state)
-    vehicle = db.query(Vehicle).filter(Vehicle.driver_id == driver.id).one_or_none()
+def _states_by_driver(db: Session, driver_ids: list[UUID]) -> dict[UUID, TachoState]:
+    if not driver_ids:
+        return {}
+    rows = db.query(TachoState).filter(TachoState.driver_id.in_(driver_ids)).all()
+    return {row.driver_id: row for row in rows}
+
+
+def _vehicles_by_driver(db: Session, tenant_id: UUID) -> dict[UUID, Vehicle]:
+    rows = db.query(Vehicle).filter(Vehicle.tenant_id == tenant_id, Vehicle.driver_id.isnot(None)).all()
+    return {row.driver_id: row for row in rows if row.driver_id is not None}
+
+
+def _latest_samples(db: Session, driver_ids: list[UUID]) -> dict[UUID, TachoSample]:
+    if not driver_ids:
+        return {}
     latest = (
-        db.query(TachoSample)
-        .filter(TachoSample.driver_id == driver.id)
-        .order_by(TachoSample.recorded_at.desc())
-        .first()
+        db.query(TachoSample.driver_id, func.max(TachoSample.recorded_at).label("recorded_at"))
+        .filter(TachoSample.driver_id.in_(driver_ids))
+        .group_by(TachoSample.driver_id)
+        .subquery()
     )
+    rows = (
+        db.query(TachoSample)
+        .join(
+            latest,
+            and_(
+                TachoSample.driver_id == latest.c.driver_id,
+                TachoSample.recorded_at == latest.c.recorded_at,
+            ),
+        )
+        .all()
+    )
+    return {row.driver_id: row for row in rows}
+
+
+def _row_from(
+    settings: TenantSettings,
+    driver: Driver,
+    state: TachoState | None,
+    vehicle: Vehicle | None,
+    latest: TachoSample | None,
+) -> TachoDriverOut:
+    limits = limits_from(settings)
     used_c = state.continuous_min if state else 0
     used_d = state.daily_min if state else 0
     used_w = state.weekly_min if state else 0

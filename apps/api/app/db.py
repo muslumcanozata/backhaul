@@ -18,8 +18,9 @@ def make_engine(database_url: str):
         return create_engine(
             database_url,
             pool_pre_ping=True,
-            pool_size=5,
-            max_overflow=10,
+            pool_size=10,
+            max_overflow=20,
+            pool_recycle=300,
             # Transaction pooler (6543) aynı prepared statement adını ikinci bağlantıda reddeder.
             connect_args={"prepare_threshold": None},
         )
@@ -46,6 +47,7 @@ def init_db(settings: Settings) -> sessionmaker[Session]:
     _ensure_position_columns(bind)
     _ensure_tacho_columns(bind)
     _ensure_tacho_state_columns(bind)
+    _ensure_list_indexes(bind)
     if settings.deployment_mode == "dedicated":
         _ensure_dedicated_tenant(factory, settings)
     _ensure_bootstrap_admin(factory, settings)
@@ -173,6 +175,18 @@ def _ensure_tacho_state_columns(bind) -> None:
         for column, ddl in columns.items():
             if column not in existing:
                 conn.exec_driver_sql(f"ALTER TABLE tacho_states ADD COLUMN {column} {ddl}")
+        conn.commit()
+
+
+def _ensure_list_indexes(bind) -> None:
+    statements = [
+        "CREATE INDEX IF NOT EXISTS ix_vehicle_positions_vehicle_recorded ON vehicle_positions (vehicle_id, recorded_at DESC)",
+        "CREATE INDEX IF NOT EXISTS ix_tacho_samples_driver_recorded ON tacho_samples (driver_id, recorded_at DESC)",
+        "CREATE INDEX IF NOT EXISTS ix_loads_vehicle_status ON loads (vehicle_id, status)",
+    ]
+    with bind.connect() as conn:
+        for statement in statements:
+            conn.exec_driver_sql(statement)
         conn.commit()
 
 

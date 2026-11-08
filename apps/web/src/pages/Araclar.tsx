@@ -14,6 +14,7 @@ import Typography from "@mui/material/Typography";
 import { api } from "../api";
 import { useFleet } from "../fleet-data";
 import { STATUS_LABEL, TRAILER_LABEL, availability, canWriteMaster, driverName } from "../labels";
+import { LoadingNote } from "../loading";
 import { useSession } from "../session";
 import { VehicleFile } from "./VehicleFile";
 
@@ -25,7 +26,7 @@ function isVehicleId(value: string) {
 
 export function Araclar({ initialFilter = "" }: { initialFilter?: string }) {
   const { token, user, notice } = useSession();
-  const { vehicles, drivers, settings, reload } = useFleet();
+  const { vehicles, drivers, settings, loading, reload } = useFleet();
   const [selected, setSelected] = useState(() => (isVehicleId(initialFilter) ? initialFilter : ""));
   const [filter, setFilter] = useState(() => (isVehicleId(initialFilter) ? "" : initialFilter));
   const [plate, setPlate] = useState("");
@@ -136,7 +137,9 @@ export function Araclar({ initialFilter = "" }: { initialFilter?: string }) {
             </ListItemButton>
           ))}
         </List>
-        {shown.length === 0 ? (
+        {loading ? (
+          <LoadingNote label="Araçlar yükleniyor…" />
+        ) : shown.length === 0 ? (
           <CardContent>
             <Typography color="text.secondary">{vehicles.length === 0 ? "Kayıtlı araç yok." : "Bu durumda araç yok."}</Typography>
           </CardContent>
