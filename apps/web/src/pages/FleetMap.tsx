@@ -2,7 +2,14 @@ import { useEffect, useRef } from "react";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { VEHICLE_STATE_COLOR, VEHICLE_STATE_LABEL, signalLabel, type VehicleState } from "../labels";
+import {
+  MOTION_STATE_LABEL,
+  VEHICLE_STATE_COLOR,
+  VEHICLE_STATE_LABEL,
+  signalLabel,
+  type MotionState,
+  type VehicleState,
+} from "../labels";
 import type { LiveVehicle } from "../types";
 
 declare global {
@@ -43,7 +50,21 @@ type LiveGoogle = {
 
 const browserKey = import.meta.env.VITE_GOOGLE_MAPS_BROWSER_KEY as string | undefined;
 
-export function FleetMap({ vehicles, selectedId, states, tick, onSelect }: { vehicles: LiveVehicle[]; selectedId: string | null; states: Map<string, VehicleState>; tick: number; onSelect: (id: string) => void }) {
+export function FleetMap({
+  vehicles,
+  selectedId,
+  states,
+  motions,
+  tick,
+  onSelect,
+}: {
+  vehicles: LiveVehicle[];
+  selectedId: string | null;
+  states: Map<string, VehicleState>;
+  motions: Map<string, MotionState>;
+  tick: number;
+  onSelect: (id: string) => void;
+}) {
   const pick = useRef(onSelect);
   pick.current = onSelect;
   const host = useRef<HTMLDivElement>(null);
@@ -55,9 +76,13 @@ export function FleetMap({ vehicles, selectedId, states, tick, onSelect }: { veh
   const rows = useRef(vehicles);
   rows.current = vehicles;
   // Durum (states) tick ile yeniden hesaplanır; konum değişmeyince marker API çağrılmaz.
-  const signature = vehicles.map((vehicle) => `${vehicle.id}:${vehicle.latitude}:${vehicle.longitude}:${vehicle.course}:${states.get(vehicle.id)}`).join("|");
+  const signature = vehicles
+    .map((vehicle) => `${vehicle.id}:${vehicle.latitude}:${vehicle.longitude}:${vehicle.course}:${states.get(vehicle.id)}:${motions.get(vehicle.id) ?? ""}`)
+    .join("|");
   const colors = useRef(states);
   colors.current = states;
+  const motionBag = useRef(motions);
+  motionBag.current = motions;
 
   useEffect(() => {
     if (!browserKey || !host.current || mapRef.current) return;
@@ -117,7 +142,9 @@ export function FleetMap({ vehicles, selectedId, states, tick, onSelect }: { veh
         created.addListener("mouseover", () => {
           const current = rows.current.find((item) => item.id === vehicle.id);
           if (!current || !info.current) return;
-          info.current.setContent(hoverCard(current, colors.current.get(current.id) ?? "bayat"));
+          info.current.setContent(
+            hoverCard(current, colors.current.get(current.id) ?? "bayat", motionBag.current.get(current.id) ?? null),
+          );
           info.current.open({ map, anchor: created, shouldFocus: false });
         });
         created.addListener("mouseout", () => info.current?.close());
@@ -166,7 +193,7 @@ export function FleetMap({ vehicles, selectedId, states, tick, onSelect }: { veh
               r={chosen ? 2.2 : 1.5}
               fill={VEHICLE_STATE_COLOR[states.get(vehicle.id) ?? "bayat"]}
             >
-              <title>{hoverText(vehicle, states.get(vehicle.id) ?? "bayat")}</title>
+              <title>{hoverText(vehicle, states.get(vehicle.id) ?? "bayat", motions.get(vehicle.id) ?? null)}</title>
             </circle>
           );
         })}
@@ -175,26 +202,28 @@ export function FleetMap({ vehicles, selectedId, states, tick, onSelect }: { veh
   );
 }
 
-function hoverText(vehicle: LiveVehicle, state: VehicleState): string {
+function hoverText(vehicle: LiveVehicle, state: VehicleState, motion: MotionState | null): string {
   const speed = vehicle.speed_kmh ? `${Math.round(Number(vehicle.speed_kmh))} km/sa` : "-";
-  return `${vehicle.plate} · ${VEHICLE_STATE_LABEL[state]} · ${vehicle.driver_name ?? "Şoför yok"} · ${speed} · ${signalLabel(vehicle.recorded_at)}`;
+  const motionLabel = motion ? ` · ${MOTION_STATE_LABEL[motion]}` : "";
+  return `${vehicle.plate} · ${VEHICLE_STATE_LABEL[state]}${motionLabel} · ${vehicle.driver_name ?? "Şoför yok"} · ${speed} · ${signalLabel(vehicle.recorded_at)}`;
 }
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
 }
 
-function hoverCard(vehicle: LiveVehicle, state: VehicleState): string {
+function hoverCard(vehicle: LiveVehicle, state: VehicleState, motion: MotionState | null): string {
   const speed = vehicle.speed_kmh ? `${Math.round(Number(vehicle.speed_kmh))} km/sa` : "-";
   const row = (name: string, value: string) =>
     `<div style="display:flex;justify-content:space-between;gap:16px"><span style="color:#637381">${name}</span><span>${escapeHtml(value)}</span></div>`;
   return `<div style="font:12px/1.5 system-ui,sans-serif;min-width:170px;color:#1c252e">
     <div style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:13px;margin-bottom:2px">
       <span style="width:9px;height:9px;border-radius:50%;background:${VEHICLE_STATE_COLOR[state]}"></span>${escapeHtml(vehicle.plate)}
-      <span style="font-weight:400;color:#637381">${VEHICLE_STATE_LABEL[state]}</span>
+      <span style="font-weight:400;color:#637381">${VEHICLE_STATE_LABEL[state]}${motion ? ` · ${MOTION_STATE_LABEL[motion]}` : ""}</span>
     </div>
     ${row("Şoför", vehicle.driver_name ?? "Yok")}
     ${row("Hız", speed)}
+    ${row("Hareket", motion ? MOTION_STATE_LABEL[motion] : "—")}
     ${row("Son sinyal", signalLabel(vehicle.recorded_at))}
   </div>`;
 }

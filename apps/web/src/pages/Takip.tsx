@@ -15,7 +15,18 @@ import { useFleet } from "../fleet-data";
 import { useLiveVehicles } from "../live-data";
 import { LoadingNote } from "../loading";
 import { FleetMap } from "./FleetMap";
-import { TRAILER_LABEL, VEHICLE_STATE_COLOR, VEHICLE_STATE_LABEL, clock, signalLabel, type VehicleState } from "../labels";
+import { LiveLegend } from "./LiveLegend";
+import {
+  MOTION_STATE_COLOR,
+  MOTION_STATE_LABEL,
+  TRAILER_LABEL,
+  VEHICLE_STATE_COLOR,
+  VEHICLE_STATE_LABEL,
+  clock,
+  signalLabel,
+  type MotionState,
+  type VehicleState,
+} from "../labels";
 import { useSession } from "../session";
 import type { Driver, LiveVehicle, Load, Settings, Vehicle } from "../types";
 
@@ -24,7 +35,7 @@ export function Takip({ initialVehicle = "" }: { initialVehicle?: string }) {
   const { settings, vehicles: fleet, drivers } = useFleet();
   const [loads, setLoads] = useState<Load[]>([]);
   const staleMinutes = settings?.gps_stale_minutes ?? 15;
-  const { vehicles, link, loading, tick, states, counts } = useLiveVehicles(staleMinutes);
+  const { vehicles, link, loading, tick, states, motions, counts, motionCounts } = useLiveVehicles(staleMinutes);
   const [selected, setSelected] = useState<string | null>(initialVehicle || null);
 
   useEffect(() => {
@@ -60,16 +71,7 @@ export function Takip({ initialVehicle = "" }: { initialVehicle?: string }) {
         }}
       >
         <CardHeader title="Araçlar" subheader={`${link} · ${vehicles.length} araç`} />
-        <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1, px: 2, pb: 1.5 }}>
-          {(Object.keys(VEHICLE_STATE_LABEL) as VehicleState[]).map((state) => (
-            <Stack key={state} direction="row" spacing={0.5} sx={{ alignItems: "center", opacity: counts.get(state) ? 1 : 0.45 }}>
-              <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: VEHICLE_STATE_COLOR[state] }} />
-              <Typography variant="caption">
-                {VEHICLE_STATE_LABEL[state]} {counts.get(state) ?? 0}
-              </Typography>
-            </Stack>
-          ))}
-        </Stack>
+        <LiveLegend dutyCounts={counts} motionCounts={motionCounts} />
         <Stack sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
           {loading ? (
             <LoadingNote label="Harita yükleniyor…" />
@@ -78,22 +80,27 @@ export function Takip({ initialVehicle = "" }: { initialVehicle?: string }) {
               Kayıtlı araç yok
             </Typography>
           ) : null}
-          {vehicles.map((vehicle) => (
-            <ListItemButton key={vehicle.id} selected={vehicle.id === selected} onClick={() => setSelected(vehicle.id)} sx={{ flexShrink: 0 }}>
-              <Box sx={{ width: 10, height: 10, mr: 1.5, flexShrink: 0, borderRadius: "50%", bgcolor: VEHICLE_STATE_COLOR[states.get(vehicle.id) ?? "bayat"] }} />
-              <Stack sx={{ minWidth: 0 }}>
-                <Typography noWrap>
-                  {vehicle.plate} · {VEHICLE_STATE_LABEL[states.get(vehicle.id) ?? "bayat"]}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" noWrap>
-                  {vehicle.driver_name ?? "Şoför yok"} · {vehicle.speed_kmh ?? "0.0"} km/s · {signalLabel(vehicle.recorded_at)}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" noWrap>
-                  {vehicle.latitude && vehicle.longitude ? `${vehicle.latitude}, ${vehicle.longitude}` : "Konum yok"}
-                </Typography>
-              </Stack>
-            </ListItemButton>
-          ))}
+          {vehicles.map((vehicle) => {
+            const duty = states.get(vehicle.id) ?? "bayat";
+            const motion = motions.get(vehicle.id);
+            return (
+              <ListItemButton key={vehicle.id} selected={vehicle.id === selected} onClick={() => setSelected(vehicle.id)} sx={{ flexShrink: 0 }}>
+                <Box sx={{ width: 10, height: 10, mr: 1.5, flexShrink: 0, borderRadius: "50%", bgcolor: VEHICLE_STATE_COLOR[duty] }} />
+                <Stack sx={{ minWidth: 0 }}>
+                  <Typography noWrap>
+                    {vehicle.plate} · {VEHICLE_STATE_LABEL[duty]}
+                    {motion ? ` · ${MOTION_STATE_LABEL[motion]}` : ""}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" noWrap>
+                    {vehicle.driver_name ?? "Şoför yok"} · {vehicle.speed_kmh ?? "0.0"} km/s · {signalLabel(vehicle.recorded_at)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" noWrap>
+                    {vehicle.latitude && vehicle.longitude ? `${vehicle.latitude}, ${vehicle.longitude}` : "Konum yok"}
+                  </Typography>
+                </Stack>
+              </ListItemButton>
+            );
+          })}
         </Stack>
       </Card>
       <Card
@@ -113,7 +120,7 @@ export function Takip({ initialVehicle = "" }: { initialVehicle?: string }) {
             <LoadingNote label="Harita yükleniyor…" />
           </Box>
         ) : null}
-        <FleetMap vehicles={vehicles} selectedId={selected} states={states} tick={tick} onSelect={setSelected} />
+        <FleetMap vehicles={vehicles} selectedId={selected} states={states} motions={motions} tick={tick} onSelect={setSelected} />
         {(() => {
           const live = vehicles.find((item) => item.id === selected);
           if (!live) return null;
@@ -121,6 +128,7 @@ export function Takip({ initialVehicle = "" }: { initialVehicle?: string }) {
             <VehiclePopup
               live={live}
               state={states.get(live.id) ?? "bayat"}
+              motion={motions.get(live.id) ?? null}
               vehicle={fleet.find((item) => item.id === live.id) ?? null}
               driver={drivers.find((item) => item.id === fleet.find((row) => row.id === live.id)?.driver_id) ?? null}
               load={loads.find((item) => item.vehicle_id === live.id && (item.status === "atandi" || item.status === "yolda")) ?? null}
@@ -163,6 +171,7 @@ function Row({ label, value }: { label: string; value: string }) {
 function VehiclePopup({
   live,
   state,
+  motion,
   vehicle,
   driver,
   load,
@@ -171,6 +180,7 @@ function VehiclePopup({
 }: {
   live: LiveVehicle;
   state: VehicleState;
+  motion: MotionState | null;
   vehicle: Vehicle | null;
   driver: Driver | null;
   load: Load | null;
@@ -196,9 +206,12 @@ function VehiclePopup({
       }}
     >
       <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+        <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
           <Typography variant="h6">{live.plate}</Typography>
           <Chip size="small" label={VEHICLE_STATE_LABEL[state]} sx={{ bgcolor: VEHICLE_STATE_COLOR[state], color: "#fff" }} />
+          {motion ? (
+            <Chip size="small" label={MOTION_STATE_LABEL[motion]} sx={{ bgcolor: MOTION_STATE_COLOR[motion], color: "#fff" }} />
+          ) : null}
         </Stack>
         <IconButton size="small" onClick={onClose} aria-label="Kapat">
           <XIcon />

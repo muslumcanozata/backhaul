@@ -150,6 +150,7 @@ export function clock(value: string): string {
 }
 
 export type VehicleState = "yuklu" | "bos" | "soforsuz" | "bayat" | "bakim" | "ariza";
+export type MotionState = "seyir" | "park";
 
 export const VEHICLE_STATE_LABEL: Record<VehicleState, string> = {
   yuklu: "Yüklü",
@@ -169,10 +170,31 @@ export const VEHICLE_STATE_COLOR: Record<VehicleState, string> = {
   ariza: "#f04438",
 };
 
+export const MOTION_STATE_LABEL: Record<MotionState, string> = {
+  seyir: "Seyir",
+  park: "Park",
+};
+
+export const MOTION_STATE_COLOR: Record<MotionState, string> = {
+  seyir: "#0ea5e9",
+  park: "#64748b",
+};
+
+export const VEHICLE_STATE_ORDER = Object.keys(VEHICLE_STATE_LABEL) as VehicleState[];
+export const MOTION_STATE_ORDER = Object.keys(MOTION_STATE_LABEL) as MotionState[];
+
 export function liveState(vehicle: LiveVehicle, staleMinutes: number): VehicleState {
   if (vehicle.status === "ariza") return "ariza";
   if (vehicle.status === "bakimda") return "bakim";
   if (!vehicle.recorded_at || Date.now() - new Date(vehicle.recorded_at).getTime() > staleMinutes * 60_000) return "bayat";
   if (!vehicle.driver_name) return "soforsuz";
   return vehicle.duty === "yuklu" ? "yuklu" : "bos";
+}
+
+/** Hızdan bağımsız durum ekseni; 0 km/s = park, >0 = seyir. Konum yoksa bilinmiyor. */
+export function liveMotion(vehicle: LiveVehicle): MotionState | null {
+  if (vehicle.latitude == null || vehicle.longitude == null) return null;
+  const speed = Number(vehicle.speed_kmh ?? 0);
+  if (!Number.isFinite(speed)) return null;
+  return speed > 0 ? "seyir" : "park";
 }
