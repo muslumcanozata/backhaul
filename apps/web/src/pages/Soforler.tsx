@@ -12,11 +12,12 @@ import Typography from "@mui/material/Typography";
 import { api } from "../api";
 import { useFleet } from "../fleet-data";
 import { canWriteMaster } from "../labels";
+import { LoadingNote } from "../loading";
 import { useSession } from "../session";
 
 export function Soforler() {
   const { token, user, notice } = useSession();
-  const { vehicles, drivers, reload } = useFleet();
+  const { vehicles, drivers, loading, reload } = useFleet();
   const [selected, setSelected] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -62,7 +63,9 @@ export function Soforler() {
               );
             })}
           </List>
-          {drivers.length === 0 ? (
+          {loading ? (
+            <LoadingNote label="Şoförler yükleniyor…" />
+          ) : drivers.length === 0 ? (
             <CardContent>
               <Typography color="text.secondary">Kayıtlı şoför yok.</Typography>
             </CardContent>

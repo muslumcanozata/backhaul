@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
 from app.deps import get_current_user, get_db, require_operation_tenant, require_writer
@@ -96,13 +97,25 @@ def _as_utc(value: datetime | None) -> datetime | None:
     return value
 
 
-def _vehicle_out(db: Session, vehicle: Vehicle) -> VehicleOut:
-    position = (
-        db.query(VehiclePosition)
-        .filter(VehiclePosition.vehicle_id == vehicle.id)
-        .order_by(VehiclePosition.recorded_at.desc())
-        .first()
-    )
+def _vehicle_out(
+    db: Session,
+    vehicle: Vehicle,
+    *,
+    position: VehiclePosition | None = None,
+    duty: str | None = None,
+    tacho: dict | None = None,
+) -> VehicleOut:
+    if position is None:
+        position = (
+            db.query(VehiclePosition)
+            .filter(VehiclePosition.vehicle_id == vehicle.id)
+            .order_by(VehiclePosition.recorded_at.desc())
+            .first()
+        )
+    if duty is None:
+        duty = _duty(db, vehicle.id)
+    if tacho is None:
+        tacho = _tacho_fields(db, vehicle)
     return VehicleOut(
         id=vehicle.id,
         plate=vehicle.plate,
@@ -116,13 +129,14 @@ def _vehicle_out(db: Session, vehicle: Vehicle) -> VehicleOut:
         longitude=position.longitude if position else None,
         speed_kmh=position.speed_kmh if position else None,
         recorded_at=_as_utc(position.recorded_at) if position else None,
-        duty=_duty(db, vehicle.id),
-        **_tacho_fields(db, vehicle),
+        duty=duty,
+        **tacho,
     )
 
 
-def _tacho_fields(db: Session, vehicle: Vehicle) -> dict:
-    state = db.get(TachoState, vehicle.driver_id) if vehicle.driver_id else None
+def _tacho_fields(db: Session, vehicle: Vehicle, state: TachoState | None = None) -> dict:
+    if state is None and vehicle.driver_id is not None:
+        state = db.get(TachoState, vehicle.driver_id)
     if state is None:
         return {}
     return {
@@ -137,6 +151,48 @@ def _tacho_fields(db: Session, vehicle: Vehicle) -> dict:
 def _duty(db: Session, vehicle_id: UUID) -> str:
     open_load = db.query(Load).filter(Load.vehicle_id == vehicle_id, Load.status.in_(("atandi", "yolda"))).first()
     return "yuklu" if open_load else "bos"
+
+
+def _latest_positions(db: Session, vehicle_ids: list[UUID]) -> dict[UUID, VehiclePosition]:
+    if not vehicle_ids:
+        return {}
+    latest = (
+        db.query(VehiclePosition.vehicle_id, func.max(VehiclePosition.recorded_at).label("recorded_at"))
+        .filter(VehiclePosition.vehicle_id.in_(vehicle_ids))
+        .group_by(VehiclePosition.vehicle_id)
+        .subquery()
+    )
+    rows = (
+        db.query(VehiclePosition)
+        .join(
+            latest,
+            and_(
+                VehiclePosition.vehicle_id == latest.c.vehicle_id,
+                VehiclePosition.recorded_at == latest.c.recorded_at,
+            ),
+        )
+        .all()
+    )
+    return {row.vehicle_id: row for row in rows}
+
+
+def _busy_vehicle_ids(db: Session, vehicle_ids: list[UUID]) -> set[UUID]:
+    if not vehicle_ids:
+        return set()
+    rows = (
+        db.query(Load.vehicle_id)
+        .filter(Load.vehicle_id.in_(vehicle_ids), Load.status.in_(("atandi", "yolda")))
+        .distinct()
+        .all()
+    )
+    return {row[0] for row in rows if row[0] is not None}
+
+
+def _tacho_by_driver(db: Session, driver_ids: list[UUID]) -> dict[UUID, TachoState]:
+    if not driver_ids:
+        return {}
+    rows = db.query(TachoState).filter(TachoState.driver_id.in_(driver_ids)).all()
+    return {row.driver_id: row for row in rows}
 
 
 @router.get("/settings", response_model=SettingsOut)
@@ -294,7 +350,20 @@ def save_netgsm_account(
 @router.get("/vehicles", response_model=list[VehicleOut])
 def list_vehicles(tenant_id: UUID = Depends(require_operation_tenant), db: Session = Depends(get_db)) -> list[VehicleOut]:
     rows = db.query(Vehicle).filter(Vehicle.tenant_id == tenant_id).order_by(Vehicle.plate).all()
-    return [_vehicle_out(db, row) for row in rows]
+    ids = [row.id for row in rows]
+    positions = _latest_positions(db, ids)
+    busy = _busy_vehicle_ids(db, ids)
+    states = _tacho_by_driver(db, [row.driver_id for row in rows if row.driver_id is not None])
+    return [
+        _vehicle_out(
+            db,
+            row,
+            position=positions.get(row.id),
+            duty="yuklu" if row.id in busy else "bos",
+            tacho=_tacho_fields(db, row, states.get(row.driver_id) if row.driver_id else None),
+        )
+        for row in rows
+    ]
 
 
 @router.post("/vehicles", response_model=VehicleOut)

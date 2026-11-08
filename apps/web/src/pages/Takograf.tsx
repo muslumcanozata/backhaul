@@ -16,6 +16,7 @@ import Typography from "@mui/material/Typography";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api } from "../api";
 import { clock, hours } from "../labels";
+import { LoadingNote } from "../loading";
 import { useSession } from "../session";
 import type { TachoDriver, TachoDriverDetail } from "../types";
 
@@ -34,25 +35,48 @@ export function Takograf({ initialDriver = "" }: { initialDriver?: string }) {
   const [rows, setRows] = useState<TachoDriver[]>([]);
   const [selected, setSelected] = useState(initialDriver);
   const [detail, setDetail] = useState<TachoDriverDetail | null>(null);
+  const [listLoading, setListLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
     if (initialDriver) setSelected(initialDriver);
   }, [initialDriver]);
 
   useEffect(() => {
+    let alive = true;
+    setListLoading(true);
     api<TachoDriver[]>("/tacho", token)
-      .then(setRows)
-      .catch((err: Error) => notice(err.message));
+      .then((next) => {
+        if (alive) setRows(next);
+      })
+      .catch((err: Error) => notice(err.message))
+      .finally(() => {
+        if (alive) setListLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
   }, [token, notice]);
 
   useEffect(() => {
     if (!selected) {
       setDetail(null);
+      setDetailLoading(false);
       return;
     }
+    let alive = true;
+    setDetailLoading(true);
     api<TachoDriverDetail>(`/tacho/${selected}`, token)
-      .then(setDetail)
-      .catch((err: Error) => notice(err.message));
+      .then((next) => {
+        if (alive) setDetail(next);
+      })
+      .catch((err: Error) => notice(err.message))
+      .finally(() => {
+        if (alive) setDetailLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
   }, [selected, token, notice]);
 
   function choose(id: string) {
@@ -134,7 +158,9 @@ export function Takograf({ initialDriver = "" }: { initialDriver?: string }) {
               </Stack>
             </ListItemButton>
           ))}
-          {rows.length === 0 ? (
+          {listLoading ? (
+            <LoadingNote label="Takograf yükleniyor…" />
+          ) : rows.length === 0 ? (
             <CardContent>
               <Typography color="text.secondary">Kayıtlı sürücü yok.</Typography>
             </CardContent>
@@ -177,7 +203,9 @@ export function Takograf({ initialDriver = "" }: { initialDriver?: string }) {
         <Card sx={{ flexShrink: 0 }}>
           <CardHeader title="Günlük kullanım" subheader="Seçili sürücünün örneklenen günlük sürüş dakikası" />
           <CardContent sx={{ height: 220 }}>
-            {dailySeries.length > 1 ? (
+            {detailLoading ? (
+              <LoadingNote label="Grafik yükleniyor…" />
+            ) : dailySeries.length > 1 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={dailySeries} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -204,7 +232,9 @@ export function Takograf({ initialDriver = "" }: { initialDriver?: string }) {
           }}
         >
           <CardHeader title="Takograf geçmişi" subheader="Seyir ölçümleri ve tahmini sayaç örnekleri, yeniden eskiye" />
-          {detail?.samples.length ? (
+          {detailLoading ? (
+            <LoadingNote label="Geçmiş yükleniyor…" />
+          ) : detail?.samples.length ? (
             <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
               <Table size="small" stickyHeader>
                 <TableHead>
