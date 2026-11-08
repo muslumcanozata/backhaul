@@ -2,7 +2,6 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
 from app.deps import get_current_user, get_db, require_operation_tenant, require_writer
@@ -154,26 +153,9 @@ def _duty(db: Session, vehicle_id: UUID) -> str:
 
 
 def _latest_positions(db: Session, vehicle_ids: list[UUID]) -> dict[UUID, VehiclePosition]:
-    if not vehicle_ids:
-        return {}
-    latest = (
-        db.query(VehiclePosition.vehicle_id, func.max(VehiclePosition.recorded_at).label("recorded_at"))
-        .filter(VehiclePosition.vehicle_id.in_(vehicle_ids))
-        .group_by(VehiclePosition.vehicle_id)
-        .subquery()
-    )
-    rows = (
-        db.query(VehiclePosition)
-        .join(
-            latest,
-            and_(
-                VehiclePosition.vehicle_id == latest.c.vehicle_id,
-                VehiclePosition.recorded_at == latest.c.recorded_at,
-            ),
-        )
-        .all()
-    )
-    return {row.vehicle_id: row for row in rows}
+    from app.tracking import _latest_positions as latest_positions
+
+    return latest_positions(db, vehicle_ids)
 
 
 def _busy_vehicle_ids(db: Session, vehicle_ids: list[UUID]) -> set[UUID]:

@@ -11,6 +11,7 @@ import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer,
 import { api } from "../api";
 import { useFleet } from "../fleet-data";
 import { LOAD_STATUS_LABEL, VEHICLE_STATE_COLOR, VEHICLE_STATE_LABEL, availability, canOperate, clock, type VehicleState } from "../labels";
+import { LoadingNote } from "../loading";
 import { useSession } from "../session";
 import type { AlertItem, Load } from "../types";
 import { useLiveVehicles } from "../live-data";
@@ -227,7 +228,12 @@ export function Masa() {
               </Stack>
             ))}
           </Stack>
-          <Box sx={{ display: "flex", flexDirection: "column", height: { xs: 340, lg: 420 } }}>
+          <Box sx={{ display: "flex", flexDirection: "column", height: { xs: 340, lg: 420 }, position: "relative" }}>
+            {live.loading ? (
+              <Box sx={{ position: "absolute", inset: 0, zIndex: 1, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "rgba(255,255,255,0.72)" }}>
+                <LoadingNote label="Harita yükleniyor…" />
+              </Box>
+            ) : null}
             <FleetMap
               vehicles={live.vehicles}
               selectedId={null}
