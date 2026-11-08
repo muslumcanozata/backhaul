@@ -13,6 +13,7 @@ import Typography from "@mui/material/Typography";
 import { api } from "../api";
 import { useFleet } from "../fleet-data";
 import { useLiveVehicles } from "../live-data";
+import { LoadingNote } from "../loading";
 import { FleetMap } from "./FleetMap";
 import { TRAILER_LABEL, VEHICLE_STATE_COLOR, VEHICLE_STATE_LABEL, clock, signalLabel, type VehicleState } from "../labels";
 import { useSession } from "../session";
@@ -20,10 +21,10 @@ import type { Driver, LiveVehicle, Load, Settings, Vehicle } from "../types";
 
 export function Takip({ initialVehicle = "" }: { initialVehicle?: string }) {
   const { token } = useSession();
-  const { settings, vehicles: fleet, drivers, reload } = useFleet();
+  const { settings, vehicles: fleet, drivers } = useFleet();
   const [loads, setLoads] = useState<Load[]>([]);
   const staleMinutes = settings?.gps_stale_minutes ?? 15;
-  const { vehicles, link, tick, states, counts } = useLiveVehicles(staleMinutes);
+  const { vehicles, link, loading, tick, states, counts } = useLiveVehicles(staleMinutes);
   const [selected, setSelected] = useState<string | null>(initialVehicle || null);
 
   useEffect(() => {
@@ -32,11 +33,10 @@ export function Takip({ initialVehicle = "" }: { initialVehicle?: string }) {
 
   useEffect(() => {
     if (!selected) return;
-    reload().catch(() => undefined);
     api<Load[]>("/loads", token)
       .then(setLoads)
       .catch(() => setLoads([]));
-  }, [selected, token, reload]);
+  }, [selected, token]);
 
   return (
     <Box
@@ -71,7 +71,9 @@ export function Takip({ initialVehicle = "" }: { initialVehicle?: string }) {
           ))}
         </Stack>
         <Stack sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-          {vehicles.length === 0 ? (
+          {loading ? (
+            <LoadingNote label="Harita yükleniyor…" />
+          ) : vehicles.length === 0 ? (
             <Typography color="text.secondary" sx={{ px: 2, pb: 2 }}>
               Kayıtlı araç yok
             </Typography>
@@ -106,6 +108,11 @@ export function Takip({ initialVehicle = "" }: { initialVehicle?: string }) {
           position: "relative",
         }}
       >
+        {loading ? (
+          <Box sx={{ position: "absolute", inset: 0, zIndex: 2, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "rgba(255,255,255,0.72)" }}>
+            <LoadingNote label="Harita yükleniyor…" />
+          </Box>
+        ) : null}
         <FleetMap vehicles={vehicles} selectedId={selected} states={states} tick={tick} onSelect={setSelected} />
         {(() => {
           const live = vehicles.find((item) => item.id === selected);

@@ -3,10 +3,14 @@ FROM python:3.12-slim
 WORKDIR /app
 
 COPY pyproject.toml ./
+# Bağımlılık katmanı uygulama kodundan ayrılır; kod değişince pip yeniden inmez.
+RUN mkdir app && printf "" > app/__init__.py \
+  && pip install --no-cache-dir . \
+  && rm -rf app
+
 COPY app ./app
 
-RUN pip install --no-cache-dir .
-
+ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
 

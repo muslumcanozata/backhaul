@@ -49,11 +49,13 @@ export function FleetMap({ vehicles, selectedId, states, tick, onSelect }: { veh
   const host = useRef<HTMLDivElement>(null);
   const mapRef = useRef<GoogleMap | null>(null);
   const markers = useRef(new Map<string, GoogleMarker>());
+  const markerKey = useRef(new Map<string, string>());
   const fitted = useRef(false);
   const info = useRef<GoogleInfo | null>(null);
   const rows = useRef(vehicles);
   rows.current = vehicles;
-  const signature = vehicles.map((vehicle) => `${vehicle.id}:${vehicle.latitude}:${vehicle.longitude}:${vehicle.course}:${states.get(vehicle.id)}`).join("|") + `#${tick}`;
+  // Durum (states) tick ile yeniden hesaplanır; konum değişmeyince marker API çağrılmaz.
+  const signature = vehicles.map((vehicle) => `${vehicle.id}:${vehicle.latitude}:${vehicle.longitude}:${vehicle.course}:${states.get(vehicle.id)}`).join("|");
   const colors = useRef(states);
   colors.current = states;
 
@@ -101,10 +103,14 @@ export function FleetMap({ vehicles, selectedId, states, tick, onSelect }: { veh
         strokeColor: "#ffffff",
         strokeWeight: 1,
       };
+      const stamp = `${spot.lat},${spot.lng},${icon.rotation},${icon.fillColor},${icon.scale}`;
       const marker = markers.current.get(vehicle.id);
       if (marker) {
-        marker.setPosition(spot);
-        marker.setIcon(icon);
+        if (markerKey.current.get(vehicle.id) !== stamp) {
+          marker.setPosition(spot);
+          marker.setIcon(icon);
+          markerKey.current.set(vehicle.id, stamp);
+        }
       } else {
         const created = new google.maps.Marker({ map, position: spot, icon });
         created.addListener("click", () => pick.current(vehicle.id));
@@ -116,6 +122,7 @@ export function FleetMap({ vehicles, selectedId, states, tick, onSelect }: { veh
         });
         created.addListener("mouseout", () => info.current?.close());
         markers.current.set(vehicle.id, created);
+        markerKey.current.set(vehicle.id, stamp);
       }
       bounds.extend(spot);
       if (vehicle.id === selectedId) map.panTo(spot);
@@ -125,6 +132,7 @@ export function FleetMap({ vehicles, selectedId, states, tick, onSelect }: { veh
         marker.setMap(null);
         info.current?.close();
         markers.current.delete(id);
+        markerKey.current.delete(id);
       }
     });
     if (!fitted.current && !bounds.isEmpty()) {
