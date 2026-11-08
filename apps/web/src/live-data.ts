@@ -1,7 +1,14 @@
 import { createClient, type RealtimeChannel, type SupabaseClient } from "@supabase/supabase-js";
 import { useEffect, useMemo, useState } from "react";
 import { API, api } from "./api";
-import { VEHICLE_STATE_LABEL, liveState, type VehicleState } from "./labels";
+import {
+  MOTION_STATE_LABEL,
+  VEHICLE_STATE_LABEL,
+  liveMotion,
+  liveState,
+  type MotionState,
+  type VehicleState,
+} from "./labels";
 import { useSession } from "./session";
 import type { LiveVehicle } from "./types";
 
@@ -133,11 +140,37 @@ export function useLiveVehicles(staleMinutes: number) {
     return next;
   }, [vehicles, staleMinutes, tick]);
 
+  const motions = useMemo(() => {
+    const next = new Map<string, MotionState>();
+    for (const vehicle of vehicles) {
+      const motion = liveMotion(vehicle);
+      if (motion) next.set(vehicle.id, motion);
+    }
+    return next;
+  }, [vehicles]);
+
   const counts = useMemo(() => {
     const next = new Map<VehicleState, number>();
     states.forEach((state) => next.set(state, (next.get(state) ?? 0) + 1));
     return next;
   }, [states]);
 
-  return { vehicles, link, loading, tick, states, counts, labels: VEHICLE_STATE_LABEL };
+  const motionCounts = useMemo(() => {
+    const next = new Map<MotionState, number>();
+    motions.forEach((state) => next.set(state, (next.get(state) ?? 0) + 1));
+    return next;
+  }, [motions]);
+
+  return {
+    vehicles,
+    link,
+    loading,
+    tick,
+    states,
+    motions,
+    counts,
+    motionCounts,
+    labels: VEHICLE_STATE_LABEL,
+    motionLabels: MOTION_STATE_LABEL,
+  };
 }

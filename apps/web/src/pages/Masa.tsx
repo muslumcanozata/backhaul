@@ -10,12 +10,13 @@ import Typography from "@mui/material/Typography";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api } from "../api";
 import { useFleet } from "../fleet-data";
-import { LOAD_STATUS_LABEL, VEHICLE_STATE_COLOR, VEHICLE_STATE_LABEL, availability, canOperate, clock, type VehicleState } from "../labels";
+import { LOAD_STATUS_LABEL, availability, canOperate, clock } from "../labels";
 import { LoadingNote } from "../loading";
 import { useSession } from "../session";
 import type { AlertItem, Load } from "../types";
 import { useLiveVehicles } from "../live-data";
 import { FleetMap } from "./FleetMap";
+import { LiveLegend } from "./LiveLegend";
 
 const PIE = ["#1877F2", "#22C55E", "#FFAB00", "#FF5630", "#8E33FF", "#00B8D9"];
 
@@ -218,16 +219,7 @@ export function Masa() {
       <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", lg: "1.4fr 1fr" } }}>
         <Card>
           <CardHeader title="Canlı harita" subheader={`${live.link} · ${live.vehicles.length} araç. Araca tıklayınca detay açılır.`} />
-          <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1.5, px: 2, pb: 1 }}>
-            {(Object.keys(VEHICLE_STATE_LABEL) as VehicleState[]).map((state) => (
-              <Stack key={state} direction="row" spacing={0.5} sx={{ alignItems: "center", opacity: live.counts.get(state) ? 1 : 0.45 }}>
-                <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: VEHICLE_STATE_COLOR[state] }} />
-                <Typography variant="caption">
-                  {VEHICLE_STATE_LABEL[state]} {live.counts.get(state) ?? 0}
-                </Typography>
-              </Stack>
-            ))}
-          </Stack>
+          <LiveLegend dutyCounts={live.counts} motionCounts={live.motionCounts} />
           <Box sx={{ display: "flex", flexDirection: "column", height: { xs: 340, lg: 420 }, position: "relative" }}>
             {live.loading ? (
               <Box sx={{ position: "absolute", inset: 0, zIndex: 1, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "rgba(255,255,255,0.72)" }}>
@@ -238,6 +230,7 @@ export function Masa() {
               vehicles={live.vehicles}
               selectedId={null}
               states={live.states}
+              motions={live.motions}
               tick={live.tick}
               onSelect={(id) => {
                 window.location.hash = `takip/${id}`;
