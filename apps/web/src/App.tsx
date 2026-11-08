@@ -1,12 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { EyeIcon, EyeSlashIcon } from "@phosphor-icons/react";
-import Alert from "@mui/material/Alert";
-import Button from "@mui/material/Button";
-import IconButton from "@mui/material/IconButton";
-import InputAdornment from "@mui/material/InputAdornment";
-import Stack from "@mui/material/Stack";
-import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
+import { CAlert, CButton, CForm, CFormInput, CFormLabel, CInputGroup, CInputGroupText } from "@coreui/react";
+import CIcon from "@coreui/icons-react";
+import { cilLockLocked, cilUser } from "@coreui/icons";
 import { api } from "./api";
 import { BrandLogo } from "./brand";
 import { pagesFor } from "./labels";
@@ -53,10 +48,10 @@ export function App() {
   if (token && !user) {
     return (
       <AuthLayout>
-        <Stack spacing={2} sx={{ alignItems: "center", textAlign: "center" }}>
+        <div className="text-center d-flex flex-column align-items-center gap-3">
           <BrandLogo size={48} stacked />
-          <Typography color="text.secondary">Oturum açılıyor…</Typography>
-        </Stack>
+          <div className="text-body-secondary">Oturum açılıyor…</div>
+        </div>
       </AuthLayout>
     );
   }
@@ -83,7 +78,6 @@ function Login({
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function submit(event: FormEvent) {
@@ -106,52 +100,53 @@ function Login({
 
   return (
     <AuthLayout>
-      <Stack component="form" spacing={3} onSubmit={submit}>
-        <Stack spacing={1.5} sx={{ alignItems: { xs: "center", sm: "flex-start" }, textAlign: { xs: "center", sm: "left" } }}>
+      <CForm className="d-flex flex-column gap-3" onSubmit={submit}>
+        <div className="d-flex flex-column gap-2 align-items-sm-start align-items-center text-sm-start text-center">
           <BrandLogo size={56} stacked />
-          <Stack spacing={0.75}>
-            <Typography variant="h4">Giriş yapın</Typography>
-            <Typography color="text.secondary" variant="body2">
-              Firma hesabınızla sefer masasına girin.
-            </Typography>
-          </Stack>
-        </Stack>
-        <TextField
-          name="email"
-          label="E-posta"
-          type="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          autoComplete="username"
-          slotProps={{ inputLabel: { shrink: true } }}
-          required
-        />
-        <TextField
-          name="password"
-          label="Parola"
-          type={showPassword ? "text" : "password"}
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          autoComplete="current-password"
-          slotProps={{
-            inputLabel: { shrink: true },
-            input: {
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton onClick={() => setShowPassword((value) => !value)} edge="end" aria-label={showPassword ? "Parolayı gizle" : "Parolayı göster"}>
-                    {showPassword ? <EyeSlashIcon size={20} /> : <EyeIcon size={20} />}
-                  </IconButton>
-                </InputAdornment>
-              ),
-            },
-          }}
-          required
-        />
-        {error ? <Alert severity="error">{error}</Alert> : null}
-        <Button type="submit" variant="contained" color="inherit" size="large" fullWidth loading={busy} disabled={busy}>
-          Giriş yap
-        </Button>
-      </Stack>
+          <div>
+            <h2 className="h4 mb-1">Giriş yapın</h2>
+            <p className="text-body-secondary small mb-0">Firma hesabınızla sefer masasına girin.</p>
+          </div>
+        </div>
+        <div>
+          <CFormLabel htmlFor="email">E-posta</CFormLabel>
+          <CInputGroup>
+            <CInputGroupText>
+              <CIcon icon={cilUser} />
+            </CInputGroupText>
+            <CFormInput
+              id="email"
+              name="email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              autoComplete="username"
+              required
+            />
+          </CInputGroup>
+        </div>
+        <div>
+          <CFormLabel htmlFor="password">Parola</CFormLabel>
+          <CInputGroup>
+            <CInputGroupText>
+              <CIcon icon={cilLockLocked} />
+            </CInputGroupText>
+            <CFormInput
+              id="password"
+              name="password"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </CInputGroup>
+        </div>
+        {error ? <CAlert color="danger" className="mb-0">{error}</CAlert> : null}
+        <CButton type="submit" color="primary" size="lg" disabled={busy}>
+          {busy ? "Giriş yapılıyor…" : "Giriş yap"}
+        </CButton>
+      </CForm>
     </AuthLayout>
   );
 }
@@ -192,8 +187,8 @@ function Shell({ error, onLogout }: { error: string; onLogout: () => void }) {
 
   return (
     <Dashboard user={user} pages={pages} page={page} onOpen={open} onLogout={onLogout}>
-      <Stack spacing={2}>
-        {error ? <Alert severity="error">{error}</Alert> : null}
+      <div className="d-flex flex-column gap-3 pb-4">
+        {error ? <CAlert color="danger">{error}</CAlert> : null}
         {page === "firmalar" ? <Sicil /> : null}
         {page === "masa" ? <Masa /> : null}
         {page === "gidis" ? <QueuePage direction="gidis" /> : null}
@@ -205,7 +200,7 @@ function Shell({ error, onLogout }: { error: string; onLogout: () => void }) {
         {page === "raporlar" ? <Raporlar initialReport={filter} /> : null}
         {page === "ayarlar" ? <Ayarlar /> : null}
         {page === "kullanicilar" ? <Kullanicilar /> : null}
-      </Stack>
+      </div>
     </Dashboard>
   );
 }

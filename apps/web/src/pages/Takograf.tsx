@@ -1,18 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import Box from "@mui/material/Box";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
-import CardHeader from "@mui/material/CardHeader";
-import Chip from "@mui/material/Chip";
-import LinearProgress from "@mui/material/LinearProgress";
-import ListItemButton from "@mui/material/ListItemButton";
-import Stack from "@mui/material/Stack";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
-import Typography from "@mui/material/Typography";
+import { CBadge, CCard, CCardBody, CCardHeader, CProgress, CTable, CTableBody, CTableDataCell, CTableHead, CTableHeaderCell, CTableRow } from "@coreui/react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api } from "../api";
 import { clock, hours } from "../labels";
@@ -117,92 +104,104 @@ export function Takograf({ initialDriver = "" }: { initialDriver?: string }) {
   }, [detail]);
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: { xs: "column", lg: "row" },
-        gap: 2,
-        height: { xs: "auto", lg: "calc(100dvh - 160px)" },
-        minHeight: { lg: 480 },
-      }}
-    >
-      <Card
-        sx={{
-          width: { lg: 340 },
-          flexShrink: 0,
-          display: "flex",
-          flexDirection: "column",
-          height: { xs: "min(420px, 50dvh)", lg: "auto" },
-          minHeight: 0,
-        }}
+    <div className="d-flex flex-column flex-lg-row gap-3" style={{ minHeight: 480 }}>
+      <CCard
+        className="d-flex flex-column flex-shrink-0"
+        style={{ width: 340, maxWidth: "100%", minHeight: 0, height: "min(420px, 50dvh)" }}
       >
-        <CardHeader title="Dijital takograf" subheader={`${rows.length} sürücü · kalan güne göre`} />
-        <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1, px: 2, pb: 1.5 }}>
-          <Chip size="small" color={summary.warning ? "warning" : "default"} label={`Sınır yakın ${summary.warning}`} />
-          <Chip size="small" label={`Tahmini ${summary.estimated}`} />
-          <Chip size="small" label={`Araçsız ${summary.noVehicle}`} />
-        </Stack>
-        <Stack sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-          {ordered.map((item) => (
-            <ListItemButton key={item.driver_id} selected={item.driver_id === selected} onClick={() => choose(item.driver_id)} sx={{ flexShrink: 0 }}>
-              <Stack spacing={0.75} sx={{ width: "100%" }}>
-                <Stack direction="row" sx={{ justifyContent: "space-between", gap: 1 }}>
-                  <Typography variant="subtitle2">{item.name}</Typography>
-                  {item.warning ? <Chip size="small" color="warning" label="Sınır yakın" /> : null}
-                </Stack>
-                <Typography variant="caption" color="text.secondary">
-                  {item.plate ?? "Araç yok"} · {sourceLabel(item.source)}
-                  {item.activity_status ? ` · ${activityLabel(item.activity_status)}` : ""}
-                </Typography>
-                <Meter label="Gün" used={item.daily_used} limit={item.daily_limit} remain={item.daily_remain} compact />
-              </Stack>
-            </ListItemButton>
-          ))}
+        <CCardHeader>
+          <strong>Dijital takograf</strong>
+          <div className="small text-body-secondary">
+            {rows.length} sürücü · kalan güne göre
+          </div>
+        </CCardHeader>
+        <div className="d-flex flex-wrap gap-2 px-3 pb-2">
+          <CBadge color={summary.warning ? "warning" : "secondary"}>Sınır yakın {summary.warning}</CBadge>
+          <CBadge color="secondary">Tahmini {summary.estimated}</CBadge>
+          <CBadge color="secondary">Araçsız {summary.noVehicle}</CBadge>
+        </div>
+        <div className="flex-grow-1 overflow-auto" style={{ minHeight: 0 }}>
+          {ordered.map((item) => {
+            const active = item.driver_id === selected;
+            return (
+              <button
+                key={item.driver_id}
+                type="button"
+                className={`w-100 border-0 border-bottom text-start px-3 py-2 ${active ? "bg-body-secondary" : "bg-transparent"}`}
+                onClick={() => choose(item.driver_id)}
+              >
+                <div className="d-flex flex-column gap-1">
+                  <div className="d-flex justify-content-between gap-2">
+                    <span className="fw-semibold">{item.name}</span>
+                    {item.warning ? <CBadge color="warning">Sınır yakın</CBadge> : null}
+                  </div>
+                  <div className="small text-body-secondary">
+                    {item.plate ?? "Araç yok"} · {sourceLabel(item.source)}
+                    {item.activity_status ? ` · ${activityLabel(item.activity_status)}` : ""}
+                  </div>
+                  <Meter label="Gün" used={item.daily_used} limit={item.daily_limit} remain={item.daily_remain} compact />
+                </div>
+              </button>
+            );
+          })}
           {listLoading ? (
             <LoadingNote label="Takograf yükleniyor…" />
           ) : rows.length === 0 ? (
-            <CardContent>
-              <Typography color="text.secondary">Kayıtlı sürücü yok.</Typography>
-            </CardContent>
+            <div className="px-3 pb-3 text-body-secondary">Kayıtlı sürücü yok.</div>
           ) : null}
-        </Stack>
-      </Card>
+        </div>
+      </CCard>
 
-      <Stack spacing={2} sx={{ flex: 1, minWidth: 0, minHeight: 0, overflow: { lg: "hidden" } }}>
-        <Card sx={{ flexShrink: 0 }}>
-          <CardHeader
-            title={current?.name ?? "Sürücü seçin"}
-            subheader={
-              current
+      <div className="d-flex flex-column gap-3 flex-grow-1" style={{ minWidth: 0, minHeight: 0 }}>
+        <CCard className="flex-shrink-0">
+          <CCardHeader>
+            <strong>{current?.name ?? "Sürücü seçin"}</strong>
+            <div className="small text-body-secondary">
+              {current
                 ? `${current.plate ?? "Araç yok"} · ${current.card_id ?? "Kart yok"} · ${current.recorded_at ? clock(current.recorded_at) : "Ölçüm yok"}`
-                : "Günlük, haftalık ve iki haftalık kullanım bu ekranda durur."
-            }
-          />
+                : "Günlük, haftalık ve iki haftalık kullanım bu ekranda durur."}
+            </div>
+          </CCardHeader>
           {current ? (
-            <CardContent>
-              <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1, mb: 2 }}>
-                <Chip size="small" label={sourceLabel(current.source)} color={current.source === "olculmus" ? "success" : "default"} />
-                {current.activity_status ? <Chip size="small" label={activityLabel(current.activity_status)} /> : null}
-                {current.daily_rest_remain_min != null ? <Chip size="small" label={`Günlük dinlenme kalan ${hours(current.daily_rest_remain_min)}`} /> : null}
-                {current.weekly_rest_remain_min != null ? <Chip size="small" label={`Haftalık dinlenme kalan ${hours(current.weekly_rest_remain_min)}`} /> : null}
-              </Stack>
-              <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" } }}>
-                <Meter label="Kesintisiz sürüş" used={current.continuous_used} limit={current.continuous_limit} remain={current.continuous_remain} />
-                <Meter label="Günlük sürüş" used={current.daily_used} limit={current.daily_limit} remain={current.daily_remain} />
-                <Meter label="Haftalık sürüş" used={current.weekly_used} limit={current.weekly_limit} remain={current.weekly_remain} />
-                <Meter label="İki haftalık sürüş" used={current.fortnight_used} limit={current.fortnight_limit} remain={current.fortnight_remain} />
-              </Box>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            <CCardBody>
+              <div className="d-flex flex-wrap gap-2 mb-3">
+                <CBadge color={current.source === "olculmus" ? "success" : "secondary"}>{sourceLabel(current.source)}</CBadge>
+                {current.activity_status ? <CBadge color="secondary">{activityLabel(current.activity_status)}</CBadge> : null}
+                {current.daily_rest_remain_min != null ? (
+                  <CBadge color="secondary">Günlük dinlenme kalan {hours(current.daily_rest_remain_min)}</CBadge>
+                ) : null}
+                {current.weekly_rest_remain_min != null ? (
+                  <CBadge color="secondary">Haftalık dinlenme kalan {hours(current.weekly_rest_remain_min)}</CBadge>
+                ) : null}
+              </div>
+              <div className="row g-3">
+                <div className="col-12 col-sm-6">
+                  <Meter label="Kesintisiz sürüş" used={current.continuous_used} limit={current.continuous_limit} remain={current.continuous_remain} />
+                </div>
+                <div className="col-12 col-sm-6">
+                  <Meter label="Günlük sürüş" used={current.daily_used} limit={current.daily_limit} remain={current.daily_remain} />
+                </div>
+                <div className="col-12 col-sm-6">
+                  <Meter label="Haftalık sürüş" used={current.weekly_used} limit={current.weekly_limit} remain={current.weekly_remain} />
+                </div>
+                <div className="col-12 col-sm-6">
+                  <Meter label="İki haftalık sürüş" used={current.fortnight_used} limit={current.fortnight_limit} remain={current.fortnight_remain} />
+                </div>
+              </div>
+              <div className="small text-body-secondary mt-3">
                 Uzatma hakkı {current.extensions_used} / {current.extensions_limit} kullanıldı.
                 {current.source === "tahmini" ? " Sayaç tahmini; Seyir ölçümü gelince kesinleşir." : ""}
-              </Typography>
-            </CardContent>
+              </div>
+            </CCardBody>
           ) : null}
-        </Card>
+        </CCard>
 
-        <Card sx={{ flexShrink: 0 }}>
-          <CardHeader title="Günlük kullanım" subheader="Seçili sürücünün örneklenen günlük sürüş dakikası" />
-          <CardContent sx={{ height: 220 }}>
+        <CCard className="flex-shrink-0">
+          <CCardHeader>
+            <strong>Günlük kullanım</strong>
+            <div className="small text-body-secondary">Seçili sürücünün örneklenen günlük sürüş dakikası</div>
+          </CCardHeader>
+          <CCardBody style={{ height: 220 }}>
             {detailLoading ? (
               <LoadingNote label="Grafik yükleniyor…" />
             ) : dailySeries.length > 1 ? (
@@ -216,59 +215,53 @@ export function Takograf({ initialDriver = "" }: { initialDriver?: string }) {
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <Typography color="text.secondary">{current ? "Çizgi için en az iki örnek gerekir." : "Çizgi için bir sürücü seçin."}</Typography>
+              <div className="text-body-secondary">{current ? "Çizgi için en az iki örnek gerekir." : "Çizgi için bir sürücü seçin."}</div>
             )}
-          </CardContent>
-        </Card>
+          </CCardBody>
+        </CCard>
 
-        <Card
-          sx={{
-            flex: { lg: 1 },
-            minHeight: 0,
-            height: { xs: "min(420px, 50dvh)", lg: "auto" },
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-          }}
-        >
-          <CardHeader title="Takograf geçmişi" subheader="Seyir ölçümleri ve tahmini sayaç örnekleri, yeniden eskiye" />
+        <CCard className="d-flex flex-column overflow-hidden" style={{ minHeight: 0, height: "min(420px, 50dvh)" }}>
+          <CCardHeader>
+            <strong>Takograf geçmişi</strong>
+            <div className="small text-body-secondary">Seyir ölçümleri ve tahmini sayaç örnekleri, yeniden eskiye</div>
+          </CCardHeader>
           {detailLoading ? (
             <LoadingNote label="Geçmiş yükleniyor…" />
           ) : detail?.samples.length ? (
-            <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
-              <Table size="small" stickyHeader>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Zaman</TableCell>
-                    <TableCell>Kaynak</TableCell>
-                    <TableCell align="right">Kesintisiz</TableCell>
-                    <TableCell align="right">Günlük</TableCell>
-                    <TableCell align="right">Haftalık</TableCell>
-                    <TableCell align="right">İki haftalık</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
+            <div className="flex-grow-1 overflow-auto" style={{ minHeight: 0 }}>
+              <CTable small hover striped className="mb-0">
+                <CTableHead>
+                  <CTableRow>
+                    <CTableHeaderCell>Zaman</CTableHeaderCell>
+                    <CTableHeaderCell>Kaynak</CTableHeaderCell>
+                    <CTableHeaderCell className="text-end">Kesintisiz</CTableHeaderCell>
+                    <CTableHeaderCell className="text-end">Günlük</CTableHeaderCell>
+                    <CTableHeaderCell className="text-end">Haftalık</CTableHeaderCell>
+                    <CTableHeaderCell className="text-end">İki haftalık</CTableHeaderCell>
+                  </CTableRow>
+                </CTableHead>
+                <CTableBody>
                   {detail.samples.map((item) => (
-                    <TableRow key={item.recorded_at}>
-                      <TableCell>{clock(item.recorded_at)}</TableCell>
-                      <TableCell>{item.source === "olculmus" ? "Ölçülmüş" : "Tahmini"}</TableCell>
-                      <TableCell align="right">{hours(item.continuous_min)}</TableCell>
-                      <TableCell align="right">{hours(item.daily_min)}</TableCell>
-                      <TableCell align="right">{hours(item.weekly_min)}</TableCell>
-                      <TableCell align="right">{hours(item.fortnight_min)}</TableCell>
-                    </TableRow>
+                    <CTableRow key={item.recorded_at}>
+                      <CTableDataCell>{clock(item.recorded_at)}</CTableDataCell>
+                      <CTableDataCell>{item.source === "olculmus" ? "Ölçülmüş" : "Tahmini"}</CTableDataCell>
+                      <CTableDataCell className="text-end">{hours(item.continuous_min)}</CTableDataCell>
+                      <CTableDataCell className="text-end">{hours(item.daily_min)}</CTableDataCell>
+                      <CTableDataCell className="text-end">{hours(item.weekly_min)}</CTableDataCell>
+                      <CTableDataCell className="text-end">{hours(item.fortnight_min)}</CTableDataCell>
+                    </CTableRow>
                   ))}
-                </TableBody>
-              </Table>
-            </Box>
+                </CTableBody>
+              </CTable>
+            </div>
           ) : (
-            <CardContent>
-              <Typography color="text.secondary">{current ? "Bu sürücüde henüz geçmiş yok." : "Geçmiş için bir sürücü seçin."}</Typography>
-            </CardContent>
+            <CCardBody>
+              <div className="text-body-secondary">{current ? "Bu sürücüde henüz geçmiş yok." : "Geçmiş için bir sürücü seçin."}</div>
+            </CCardBody>
           )}
-        </Card>
-      </Stack>
-    </Box>
+        </CCard>
+      </div>
+    </div>
   );
 }
 
@@ -297,21 +290,17 @@ function Meter({
   compact?: boolean;
 }) {
   const ratio = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
-  const color = remain <= 30 || ratio >= 90 ? "error" : ratio >= 70 ? "warning" : "success";
+  const color = remain <= 30 || ratio >= 90 ? "danger" : ratio >= 70 ? "warning" : "success";
   return (
-    <Stack spacing={0.5}>
-      <Stack direction="row" sx={{ justifyContent: "space-between", gap: 1 }}>
-        <Typography variant={compact ? "caption" : "subtitle2"}>{label}</Typography>
-        <Typography variant="caption" color="text.secondary">
+    <div className="d-flex flex-column gap-1">
+      <div className="d-flex justify-content-between gap-2">
+        <span className={compact ? "small" : "fw-semibold"}>{label}</span>
+        <span className="small text-body-secondary">
           {hours(used)} / {hours(limit)}
-        </Typography>
-      </Stack>
-      <LinearProgress variant="determinate" value={ratio} color={color} sx={{ height: compact ? 6 : 8, borderRadius: 99 }} />
-      {compact ? null : (
-        <Typography variant="caption" color="text.secondary">
-          Kalan {hours(remain)}
-        </Typography>
-      )}
-    </Stack>
+        </span>
+      </div>
+      <CProgress thin={!compact} height={compact ? 6 : 8} value={ratio} color={color} />
+      {compact ? null : <div className="small text-body-secondary">Kalan {hours(remain)}</div>}
+    </div>
   );
 }

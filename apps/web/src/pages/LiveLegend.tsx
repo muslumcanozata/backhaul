@@ -1,6 +1,3 @@
-import Box from "@mui/material/Box";
-import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
 import {
   MOTION_STATE_COLOR,
   MOTION_STATE_LABEL,
@@ -20,12 +17,10 @@ export function LiveLegend({
   motionCounts: Map<MotionState, number>;
 }) {
   return (
-    <Stack spacing={1} sx={{ px: 2, pb: 1.5 }}>
-      <Stack spacing={0.5}>
-        <Typography variant="caption" color="text.secondary">
-          Durum
-        </Typography>
-        <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1 }}>
+    <div className="d-flex flex-column gap-2 px-3 pb-3">
+      <div>
+        <div className="text-body-secondary small mb-1">Durum</div>
+        <div className="d-flex flex-wrap gap-2">
           {VEHICLE_STATE_ORDER.map((state) => (
             <ChipRow
               key={state}
@@ -34,13 +29,11 @@ export function LiveLegend({
               muted={!dutyCounts.get(state)}
             />
           ))}
-        </Stack>
-      </Stack>
-      <Stack spacing={0.5}>
-        <Typography variant="caption" color="text.secondary">
-          Hareket
-        </Typography>
-        <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1 }}>
+        </div>
+      </div>
+      <div>
+        <div className="text-body-secondary small mb-1">Hareket</div>
+        <div className="d-flex flex-wrap gap-2">
           {MOTION_STATE_ORDER.map((state) => (
             <ChipRow
               key={state}
@@ -49,17 +42,17 @@ export function LiveLegend({
               muted={!motionCounts.get(state)}
             />
           ))}
-        </Stack>
-      </Stack>
-    </Stack>
+        </div>
+      </div>
+    </div>
   );
 }
 
 function ChipRow({ color, label, muted }: { color: string; label: string; muted: boolean }) {
   return (
-    <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", opacity: muted ? 0.45 : 1 }}>
-      <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: color }} />
-      <Typography variant="caption">{label}</Typography>
-    </Stack>
+    <span className="d-inline-flex align-items-center gap-1 small" style={{ opacity: muted ? 0.45 : 1 }}>
+      <span className="legend-dot" style={{ backgroundColor: color }} />
+      {label}
+    </span>
   );
 }

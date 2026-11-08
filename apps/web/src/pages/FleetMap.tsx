@@ -1,7 +1,4 @@
 import { useEffect, useRef } from "react";
-import Box from "@mui/material/Box";
-import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
 import {
   MOTION_STATE_LABEL,
   VEHICLE_STATE_COLOR,
@@ -75,7 +72,6 @@ export function FleetMap({
   const info = useRef<GoogleInfo | null>(null);
   const rows = useRef(vehicles);
   rows.current = vehicles;
-  // Durum (states) tick ile yeniden hesaplanır; konum değişmeyince marker API çağrılmaz.
   const signature = vehicles
     .map((vehicle) => `${vehicle.id}:${vehicle.latitude}:${vehicle.longitude}:${vehicle.course}:${states.get(vehicle.id)}:${motions.get(vehicle.id) ?? ""}`)
     .join("|");
@@ -83,22 +79,25 @@ export function FleetMap({
   colors.current = states;
   const motionBag = useRef(motions);
   motionBag.current = motions;
+  void tick;
 
   useEffect(() => {
     if (!browserKey || !host.current || mapRef.current) return;
     let cancelled = false;
-    loadMaps(browserKey).then((google) => {
-      if (cancelled || !host.current || mapRef.current) return;
-      info.current = new google.maps.InfoWindow({ disableAutoPan: true });
-      mapRef.current = new google.maps.Map(host.current, {
-        center: { lat: 39.1, lng: 35.2 },
-        zoom: 6,
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: false,
-      });
-      paint(google);
-    }).catch(() => undefined);
+    loadMaps(browserKey)
+      .then((google) => {
+        if (cancelled || !host.current || mapRef.current) return;
+        info.current = new google.maps.InfoWindow({ disableAutoPan: true });
+        mapRef.current = new google.maps.Map(host.current, {
+          center: { lat: 39.1, lng: 35.2 },
+          zoom: 6,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: false,
+        });
+        paint(google);
+      })
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
@@ -168,18 +167,16 @@ export function FleetMap({
     }
   }
 
-  if (browserKey) return <Box ref={host} sx={{ flex: 1, minHeight: 0, width: "100%" }} />;
+  if (browserKey) return <div ref={host} className="map-host" />;
 
   const marks = vehicles
     .map((vehicle) => ({ vehicle, spot: point(vehicle.latitude, vehicle.longitude) }))
     .filter((item): item is { vehicle: LiveVehicle; spot: LatLng } => item.spot !== null);
 
   return (
-    <Stack sx={{ flex: 1, minHeight: 0 }}>
-      <Typography variant="caption" color="text.secondary" sx={{ px: 2, pt: 2 }}>
-        Google harita anahtarı yok. Konumlar Türkiye taslağında canlı durur.
-      </Typography>
-      <Box component="svg" viewBox="0 0 100 64" sx={{ width: "100%", flex: 1, minHeight: 0, bgcolor: "#f4f6f8" }}>
+    <div className="d-flex flex-column flex-grow-1" style={{ minHeight: 0 }}>
+      <div className="small text-body-secondary px-3 pt-3">Google harita anahtarı yok. Konumlar Türkiye taslağında canlı durur.</div>
+      <svg viewBox="0 0 100 64" className="w-100 flex-grow-1" style={{ minHeight: 0, background: "#f4f6f8" }}>
         {marks.map(({ vehicle, spot }) => {
           const place = project(spot);
           const chosen = vehicle.id === selectedId;
@@ -197,8 +194,8 @@ export function FleetMap({
             </circle>
           );
         })}
-      </Box>
-    </Stack>
+      </svg>
+    </div>
   );
 }
 
@@ -259,4 +256,3 @@ function loadMaps(token: string): Promise<LiveGoogle> {
   document.head.appendChild(script);
   return wait(script);
 }
-

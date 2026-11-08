@@ -1,16 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import Box from "@mui/material/Box";
-import Chip from "@mui/material/Chip";
-import Button from "@mui/material/Button";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
-import CardHeader from "@mui/material/CardHeader";
-import List from "@mui/material/List";
-import ListItemButton from "@mui/material/ListItemButton";
-import MenuItem from "@mui/material/MenuItem";
-import Stack from "@mui/material/Stack";
-import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
+import { CBadge, CButton, CCard, CCardBody, CCardHeader, CFormInput, CFormLabel, CFormSelect } from "@coreui/react";
 import { api } from "../api";
 import { useFleet } from "../fleet-data";
 import { STATUS_LABEL, TRAILER_LABEL, availability, canWriteMaster, driverName } from "../labels";
@@ -94,78 +83,115 @@ export function Araclar({ initialFilter = "" }: { initialFilter?: string }) {
 
   if (selected && vehicle) {
     return (
-      <Stack spacing={2}>
+      <div className="d-flex flex-column gap-3">
         <VehicleFile vehicle={vehicle} drivers={drivers} settings={settings} onChanged={reload} onClose={closeVehicle} />
-      </Stack>
+      </div>
     );
   }
 
   if (selected && !vehicle) {
     return (
-      <Card>
-        <CardContent>
-          <Stack spacing={2}>
-            <Typography color="text.secondary">Araç bulunamadı.</Typography>
-            <Button onClick={closeVehicle}>Listeye dön</Button>
-          </Stack>
-        </CardContent>
-      </Card>
+      <CCard>
+        <CCardBody className="d-flex flex-column gap-3">
+          <div className="text-body-secondary">Araç bulunamadı.</div>
+          <CButton color="secondary" variant="outline" onClick={closeVehicle}>
+            Listeye dön
+          </CButton>
+        </CCardBody>
+      </CCard>
     );
   }
 
   return (
-    <Box sx={{ display: "grid", gap: 3, gridTemplateColumns: { xs: "1fr", lg: canWriteMaster(user.role) ? "1.4fr 0.8fr" : "1fr" } }}>
-      <Card>
-        <CardHeader title="Araçlar" subheader="Özlük dosyası için bir araç seçin." />
-        <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1, px: 2, pb: 1 }}>
-          <Chip label={`Tümü ${vehicles.length}`} color={filter ? "default" : "primary"} onClick={() => chooseFilter("")} />
-          {[...groups.entries()].map(([label, count]) => (
-            <Chip key={label} label={`${label} ${count}`} color={filter === label ? "primary" : "default"} onClick={() => chooseFilter(label)} />
-          ))}
-          {filter && !groups.has(filter) ? <Chip label={`${filter} 0`} color="primary" onClick={() => chooseFilter("")} /> : null}
-        </Stack>
-        <List>
-          {shown.map((item) => (
-            <ListItemButton key={item.id} onClick={() => openVehicle(item.id)}>
-              <Stack>
-                <Typography variant="subtitle2">{item.plate}</Typography>
-                <Typography variant="body2" color="text.secondary">
+    <div className="row g-3">
+      <div className={canWriteMaster(user.role) ? "col-12 col-lg-8" : "col-12"}>
+        <CCard>
+          <CCardHeader>
+            <strong>Araçlar</strong>
+            <div className="small text-body-secondary">Özlük dosyası için bir araç seçin.</div>
+          </CCardHeader>
+          <div className="d-flex flex-wrap gap-2 px-3 pb-2">
+            <CBadge
+              as="button"
+              type="button"
+              color={filter ? "secondary" : "primary"}
+              className="border-0"
+              onClick={() => chooseFilter("")}
+            >
+              Tümü {vehicles.length}
+            </CBadge>
+            {[...groups.entries()].map(([label, count]) => (
+              <CBadge
+                key={label}
+                as="button"
+                type="button"
+                color={filter === label ? "primary" : "secondary"}
+                className="border-0"
+                onClick={() => chooseFilter(label)}
+              >
+                {label} {count}
+              </CBadge>
+            ))}
+            {filter && !groups.has(filter) ? (
+              <CBadge as="button" type="button" color="primary" className="border-0" onClick={() => chooseFilter("")}>
+                {filter} 0
+              </CBadge>
+            ) : null}
+          </div>
+          <div className="list-group list-group-flush">
+            {shown.map((item) => (
+              <button key={item.id} type="button" className="list-group-item list-group-item-action text-start" onClick={() => openVehicle(item.id)}>
+                <div className="fw-semibold">{item.plate}</div>
+                <div className="small text-body-secondary">
                   {TRAILER_LABEL[item.trailer_type] ?? item.trailer_type} · {item.capacity_tons} ton · {STATUS_LABEL[item.status] ?? item.status} ·{" "}
                   {driverName(drivers, item.driver_id)} · {availability(item, settings)}
-                </Typography>
-              </Stack>
-            </ListItemButton>
-          ))}
-        </List>
-        {loading ? (
-          <LoadingNote label="Araçlar yükleniyor…" />
-        ) : shown.length === 0 ? (
-          <CardContent>
-            <Typography color="text.secondary">{vehicles.length === 0 ? "Kayıtlı araç yok." : "Bu durumda araç yok."}</Typography>
-          </CardContent>
-        ) : null}
-      </Card>
+                </div>
+              </button>
+            ))}
+          </div>
+          {loading ? (
+            <LoadingNote label="Araçlar yükleniyor…" />
+          ) : shown.length === 0 ? (
+            <CCardBody>
+              <div className="text-body-secondary">{vehicles.length === 0 ? "Kayıtlı araç yok." : "Bu durumda araç yok."}</div>
+            </CCardBody>
+          ) : null}
+        </CCard>
+      </div>
       {canWriteMaster(user.role) ? (
-        <Card component="form" onSubmit={create}>
-          <CardHeader title="Araç ekle" />
-          <CardContent>
-            <Stack spacing={2}>
-              <TextField label="Plaka" value={plate} onChange={(event) => setPlate(event.target.value)} required />
-              <TextField label="Kapasite (ton)" value={capacity} onChange={(event) => setCapacity(event.target.value)} required />
-              <TextField select label="Kasa" value={types.includes(trailer) ? trailer : types[0]} onChange={(event) => setTrailer(event.target.value)}>
-                {types.map((type) => (
-                  <MenuItem key={type} value={type}>
-                    {TRAILER_LABEL[type] ?? type}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <Button type="submit" variant="contained">
-                Ekle
-              </Button>
-            </Stack>
-          </CardContent>
-        </Card>
+        <div className="col-12 col-lg-4">
+          <CCard>
+            <CCardHeader>
+              <strong>Araç ekle</strong>
+            </CCardHeader>
+            <CCardBody>
+              <form className="d-flex flex-column gap-3" onSubmit={create}>
+                <div>
+                  <CFormLabel>Plaka</CFormLabel>
+                  <CFormInput value={plate} onChange={(event) => setPlate(event.target.value)} required />
+                </div>
+                <div>
+                  <CFormLabel>Kapasite (ton)</CFormLabel>
+                  <CFormInput value={capacity} onChange={(event) => setCapacity(event.target.value)} required />
+                </div>
+                <div>
+                  <CFormLabel>Kasa</CFormLabel>
+                  <CFormSelect value={types.includes(trailer) ? trailer : types[0]} onChange={(event) => setTrailer(event.target.value)}>
+                    {types.map((type) => (
+                      <option key={type} value={type}>
+                        {TRAILER_LABEL[type] ?? type}
+                      </option>
+                    ))}
+                  </CFormSelect>
+                </div>
+                <CButton type="submit" color="primary">
+                  Ekle
+                </CButton>
+              </form>
+            </CCardBody>
+          </CCard>
+        </div>
       ) : null}
-    </Box>
+    </div>
   );
 }

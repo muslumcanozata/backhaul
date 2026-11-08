@@ -1,16 +1,16 @@
 import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
-import CardHeader from "@mui/material/CardHeader";
-import Divider from "@mui/material/Divider";
-import MenuItem from "@mui/material/MenuItem";
-import Stack from "@mui/material/Stack";
-import Tab from "@mui/material/Tab";
-import Tabs from "@mui/material/Tabs";
-import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
+import {
+  CButton,
+  CCard,
+  CCardBody,
+  CCardHeader,
+  CFormInput,
+  CFormLabel,
+  CFormSelect,
+  CNav,
+  CNavItem,
+  CNavLink,
+} from "@coreui/react";
 import { api } from "../api";
 import { STATUS_LABEL, TRAILER_LABEL, availability, canOperate, canWriteMaster, driverName, signalLabel } from "../labels";
 import { useSession } from "../session";
@@ -40,6 +40,8 @@ const TIRE_EVENT = [
   ["degisti", "Değişti"],
   ["basinc", "Basınç"],
 ] as const;
+
+const TABS = ["Özet", "Bakım", "Lastik", "Yakıt", "Kullanım"] as const;
 
 function stamp(value: string | null | undefined) {
   if (!value) return "—";
@@ -141,116 +143,109 @@ export function VehicleFile({
   ];
 
   return (
-    <Card>
-      <CardHeader
-        title={vehicle.plate}
-        subheader={`${TRAILER_LABEL[vehicle.trailer_type] ?? vehicle.trailer_type} · ${vehicle.capacity_tons} ton · ${availability(vehicle, settings)}`}
-        action={
-          <Button onClick={onClose} size="small">
-            Listeye dön
-          </Button>
-        }
-      />
-      <CardContent>
-      <Tabs value={tab} onChange={(_, next) => setTab(next)} variant="scrollable" allowScrollButtonsMobile sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}>
-        <Tab label="Özet" />
-        <Tab label="Bakım" />
-        <Tab label="Lastik" />
-        <Tab label="Yakıt" />
-        <Tab label="Kullanım" />
-      </Tabs>
+    <CCard>
+      <CCardHeader className="d-flex flex-column flex-sm-row justify-content-between gap-2 align-items-sm-start">
+        <div>
+          <strong>{vehicle.plate}</strong>
+          <div className="small text-body-secondary">
+            {TRAILER_LABEL[vehicle.trailer_type] ?? vehicle.trailer_type} · {vehicle.capacity_tons} ton · {availability(vehicle, settings)}
+          </div>
+        </div>
+        <CButton color="secondary" variant="outline" size="sm" onClick={onClose}>
+          Listeye dön
+        </CButton>
+      </CCardHeader>
+      <CCardBody>
+        <CNav variant="tabs" role="tablist" className="mb-3 flex-nowrap overflow-auto">
+          {TABS.map((label, index) => (
+            <CNavItem key={label}>
+              <CNavLink
+                href="#"
+                active={tab === index}
+                onClick={(event) => {
+                  event.preventDefault();
+                  setTab(index);
+                }}
+                style={{ whiteSpace: "nowrap" }}
+              >
+                {label}
+              </CNavLink>
+            </CNavItem>
+          ))}
+        </CNav>
 
-      {tab === 0 ? (
-        <Stack spacing={2}>
-          <Stack spacing={1.5}>
-            {facts.map(([label, value]) => (
-              <Box key={label}>
-                <Typography variant="caption" color="text.secondary">
-                  {label}
-                </Typography>
-                <Typography>{value}</Typography>
-              </Box>
-            ))}
-          </Stack>
-          {canWriteMaster(user.role) ? (
-            <Stack component="form" spacing={2} onSubmit={saveMaster}>
-              <Typography variant="h6">Kayıt</Typography>
-              <TextField select label="Durum" value={status} onChange={(event) => setStatus(event.target.value)}>
-                {Object.entries(STATUS_LABEL).map(([value, label]) => (
-                  <MenuItem key={value} value={value}>
-                    {label}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField select label="Bağlı şoför" value={driverId} onChange={(event) => setDriverId(event.target.value)}>
-                <MenuItem value="">Şoför yok</MenuItem>
-                {drivers.map((driver) => (
-                  <MenuItem key={driver.id} value={driver.id}>
-                    {driver.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <Button type="submit" variant="contained">
-                Kaydet
-              </Button>
-            </Stack>
-          ) : null}
-          {canOperate(user.role) ? (
-            <Stack component="form" spacing={2} onSubmit={savePosition}>
-              <Typography variant="h6">Elle konum</Typography>
-              <TextField label="Enlem" value={latitude} onChange={(event) => setLatitude(event.target.value)} required />
-              <TextField label="Boylam" value={longitude} onChange={(event) => setLongitude(event.target.value)} required />
-              <TextField label="Hız (km/s)" value={speed} onChange={(event) => setSpeed(event.target.value)} />
-              <Button type="submit" variant="contained">
-                Konumu yaz
-              </Button>
-            </Stack>
-          ) : null}
-        </Stack>
-      ) : null}
+        {tab === 0 ? (
+          <div className="d-flex flex-column gap-3">
+            <div className="d-flex flex-column gap-3">
+              {facts.map(([label, value]) => (
+                <div key={label}>
+                  <div className="small text-body-secondary">{label}</div>
+                  <div>{value}</div>
+                </div>
+              ))}
+            </div>
+            {canWriteMaster(user.role) ? (
+              <form className="d-flex flex-column gap-3" onSubmit={saveMaster}>
+                <h2 className="h5 mb-0">Kayıt</h2>
+                <div>
+                  <CFormLabel>Durum</CFormLabel>
+                  <CFormSelect value={status} onChange={(event) => setStatus(event.target.value)}>
+                    {Object.entries(STATUS_LABEL).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </CFormSelect>
+                </div>
+                <div>
+                  <CFormLabel>Bağlı şoför</CFormLabel>
+                  <CFormSelect value={driverId} onChange={(event) => setDriverId(event.target.value)}>
+                    <option value="">Şoför yok</option>
+                    {drivers.map((driver) => (
+                      <option key={driver.id} value={driver.id}>
+                        {driver.name}
+                      </option>
+                    ))}
+                  </CFormSelect>
+                </div>
+                <CButton type="submit" color="primary">
+                  Kaydet
+                </CButton>
+              </form>
+            ) : null}
+            {canOperate(user.role) ? (
+              <form className="d-flex flex-column gap-3" onSubmit={savePosition}>
+                <h2 className="h5 mb-0">Elle konum</h2>
+                <div>
+                  <CFormLabel>Enlem</CFormLabel>
+                  <CFormInput value={latitude} onChange={(event) => setLatitude(event.target.value)} required />
+                </div>
+                <div>
+                  <CFormLabel>Boylam</CFormLabel>
+                  <CFormInput value={longitude} onChange={(event) => setLongitude(event.target.value)} required />
+                </div>
+                <div>
+                  <CFormLabel>Hız (km/s)</CFormLabel>
+                  <CFormInput value={speed} onChange={(event) => setSpeed(event.target.value)} />
+                </div>
+                <CButton type="submit" color="primary">
+                  Konumu yaz
+                </CButton>
+              </form>
+            ) : null}
+          </div>
+        ) : null}
 
-      {tab === 1 ? (
-        <HistoryTab
-          title="Bakım geçmişi"
-          canWrite={canOperate(user.role)}
-          rows={(dossier?.maintenances ?? []).map((row) => `${stamp(row.happened_at)} · ${row.kind} · ${row.odometer_km ?? "—"} km · ${row.workshop ?? ""} ${row.cost_try ? `· ${row.cost_try} TL` : ""}`)}
-          form={
-            <MaintenanceForm
-              defaultKm={dossier?.odometer_km ?? ""}
-              onSaved={async () => {
-                await loadDossier();
-              }}
-              vehicleId={vehicle.id}
-            />
-          }
-        />
-      ) : null}
-
-      {tab === 2 ? (
-        <HistoryTab
-          title="Lastik geçmişi"
-          canWrite={canOperate(user.role)}
-          rows={(dossier?.tire_events ?? []).map((row) => `${stamp(row.happened_at)} · ${row.position} · ${row.event} · ${row.brand_size ?? ""} · ${row.odometer_km ?? "—"} km`)}
-          form={
-            <TireForm
-              defaultKm={dossier?.odometer_km ?? ""}
-              onSaved={async () => {
-                await loadDossier();
-              }}
-              vehicleId={vehicle.id}
-            />
-          }
-        />
-      ) : null}
-
-      {tab === 3 ? (
-        <Stack spacing={2}>
+        {tab === 1 ? (
           <HistoryTab
-            title="Yakıt alma"
+            title="Bakım geçmişi"
             canWrite={canOperate(user.role)}
-            rows={(dossier?.fuel_fills ?? []).map((row) => `${stamp(row.happened_at)} · ${row.liters ?? "—"} L · ${row.amount_try ?? "—"} TL · ${row.station ?? row.source} · ${row.odometer_km ?? "—"} km`)}
+            rows={(dossier?.maintenances ?? []).map(
+              (row) =>
+                `${stamp(row.happened_at)} · ${row.kind} · ${row.odometer_km ?? "—"} km · ${row.workshop ?? ""} ${row.cost_try ? `· ${row.cost_try} TL` : ""}`,
+            )}
             form={
-              <FuelForm
+              <MaintenanceForm
                 defaultKm={dossier?.odometer_km ?? ""}
                 onSaved={async () => {
                   await loadDossier();
@@ -259,50 +254,93 @@ export function VehicleFile({
               />
             }
           />
-          {(dossier?.fuel_samples.length ?? 0) > 0 ? (
-            <Stack spacing={1}>
-              <Typography variant="subtitle2">Seyir depo örnekleri</Typography>
-              {(dossier?.fuel_samples ?? []).slice(0, 12).map((row) => (
-                <Typography key={row.id} variant="body2" color="text.secondary">
-                  {stamp(row.recorded_at)} · {row.level_pct != null ? `%${row.level_pct}` : `${row.level_liters} L`} · {row.odometer_km ?? "—"} km
-                </Typography>
-              ))}
-            </Stack>
-          ) : null}
-        </Stack>
-      ) : null}
+        ) : null}
 
-      {tab === 4 ? (
-        <Stack spacing={2}>
-          <Typography variant="h6">Şoför kullanım</Typography>
-          {(dossier?.driver_stints ?? []).length === 0 ? <Typography color="text.secondary">Stint yok</Typography> : null}
-          {(dossier?.driver_stints ?? []).map((row) => (
-            <Box key={row.id}>
-              <Typography
-                sx={{ cursor: "pointer", color: "primary.main" }}
-                onClick={() => {
-                  window.location.hash = `takograf/${row.driver_id}`;
+        {tab === 2 ? (
+          <HistoryTab
+            title="Lastik geçmişi"
+            canWrite={canOperate(user.role)}
+            rows={(dossier?.tire_events ?? []).map(
+              (row) =>
+                `${stamp(row.happened_at)} · ${row.position} · ${row.event} · ${row.brand_size ?? ""} · ${row.odometer_km ?? "—"} km`,
+            )}
+            form={
+              <TireForm
+                defaultKm={dossier?.odometer_km ?? ""}
+                onSaved={async () => {
+                  await loadDossier();
                 }}
-              >
-                {row.driver_name}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {stamp(row.started_at)} → {row.ended_at ? stamp(row.ended_at) : "açık"} · {row.source}
-              </Typography>
-            </Box>
-          ))}
-          <Divider />
-          <Typography variant="h6">Yükler</Typography>
-          {(dossier?.usage_loads ?? []).length === 0 ? <Typography color="text.secondary">Yük yok</Typography> : null}
-          {(dossier?.usage_loads ?? []).map((row) => (
-            <Typography key={row.id} variant="body2">
-              {row.reference} · {row.direction} · {row.status} · {stamp(row.ready_at)}
-            </Typography>
-          ))}
-        </Stack>
-      ) : null}
-      </CardContent>
-    </Card>
+                vehicleId={vehicle.id}
+              />
+            }
+          />
+        ) : null}
+
+        {tab === 3 ? (
+          <div className="d-flex flex-column gap-3">
+            <HistoryTab
+              title="Yakıt alma"
+              canWrite={canOperate(user.role)}
+              rows={(dossier?.fuel_fills ?? []).map(
+                (row) =>
+                  `${stamp(row.happened_at)} · ${row.liters ?? "—"} L · ${row.amount_try ?? "—"} TL · ${row.station ?? row.source} · ${row.odometer_km ?? "—"} km`,
+              )}
+              form={
+                <FuelForm
+                  defaultKm={dossier?.odometer_km ?? ""}
+                  onSaved={async () => {
+                    await loadDossier();
+                  }}
+                  vehicleId={vehicle.id}
+                />
+              }
+            />
+            {(dossier?.fuel_samples.length ?? 0) > 0 ? (
+              <div className="d-flex flex-column gap-2">
+                <div className="fw-semibold">Seyir depo örnekleri</div>
+                {(dossier?.fuel_samples ?? []).slice(0, 12).map((row) => (
+                  <div key={row.id} className="small text-body-secondary">
+                    {stamp(row.recorded_at)} · {row.level_pct != null ? `%${row.level_pct}` : `${row.level_liters} L`} · {row.odometer_km ?? "—"}{" "}
+                    km
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {tab === 4 ? (
+          <div className="d-flex flex-column gap-3">
+            <h2 className="h5 mb-0">Şoför kullanım</h2>
+            {(dossier?.driver_stints ?? []).length === 0 ? <div className="text-body-secondary">Stint yok</div> : null}
+            {(dossier?.driver_stints ?? []).map((row) => (
+              <div key={row.id}>
+                <button
+                  type="button"
+                  className="btn btn-link p-0 text-decoration-none"
+                  onClick={() => {
+                    window.location.hash = `takograf/${row.driver_id}`;
+                  }}
+                >
+                  {row.driver_name}
+                </button>
+                <div className="small text-body-secondary">
+                  {stamp(row.started_at)} → {row.ended_at ? stamp(row.ended_at) : "açık"} · {row.source}
+                </div>
+              </div>
+            ))}
+            <hr />
+            <h2 className="h5 mb-0">Yükler</h2>
+            {(dossier?.usage_loads ?? []).length === 0 ? <div className="text-body-secondary">Yük yok</div> : null}
+            {(dossier?.usage_loads ?? []).map((row) => (
+              <div key={row.id} className="small">
+                {row.reference} · {row.direction} · {row.status} · {stamp(row.ready_at)}
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </CCardBody>
+    </CCard>
   );
 }
 
@@ -318,16 +356,16 @@ function HistoryTab({
   canWrite: boolean;
 }) {
   return (
-    <Stack spacing={2}>
-      <Typography variant="h6">{title}</Typography>
-      {rows.length === 0 ? <Typography color="text.secondary">Kayıt yok</Typography> : null}
+    <div className="d-flex flex-column gap-3">
+      <h2 className="h5 mb-0">{title}</h2>
+      {rows.length === 0 ? <div className="text-body-secondary">Kayıt yok</div> : null}
       {rows.map((row) => (
-        <Typography key={row} variant="body2">
+        <div key={row} className="small">
           {row}
-        </Typography>
+        </div>
       ))}
       {canWrite ? form : null}
-    </Stack>
+    </div>
   );
 }
 
@@ -366,24 +404,42 @@ function MaintenanceForm({ vehicleId, defaultKm, onSaved }: { vehicleId: string;
   }
 
   return (
-    <Stack component="form" spacing={1.5} onSubmit={submit}>
-      <Typography variant="subtitle2">Yeni bakım</Typography>
-      <TextField select label="Tür" value={kind} onChange={(event) => setKind(event.target.value)}>
-        {MAINT_KIND.map(([value, label]) => (
-          <MenuItem key={value} value={value}>
-            {label}
-          </MenuItem>
-        ))}
-      </TextField>
-      <TextField label="Tarih" type="datetime-local" value={happenedAt} onChange={(event) => setHappenedAt(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} required />
-      <TextField label="Km" value={odometer} onChange={(event) => setOdometer(event.target.value)} />
-      <TextField label="Tutar (TL)" value={cost} onChange={(event) => setCost(event.target.value)} />
-      <TextField label="Servis" value={workshop} onChange={(event) => setWorkshop(event.target.value)} />
-      <TextField label="Not" value={note} onChange={(event) => setNote(event.target.value)} />
-      <Button type="submit" variant="contained">
+    <form className="d-flex flex-column gap-3" onSubmit={submit}>
+      <div className="fw-semibold">Yeni bakım</div>
+      <div>
+        <CFormLabel>Tür</CFormLabel>
+        <CFormSelect value={kind} onChange={(event) => setKind(event.target.value)}>
+          {MAINT_KIND.map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </CFormSelect>
+      </div>
+      <div>
+        <CFormLabel>Tarih</CFormLabel>
+        <CFormInput type="datetime-local" value={happenedAt} onChange={(event) => setHappenedAt(event.target.value)} required />
+      </div>
+      <div>
+        <CFormLabel>Km</CFormLabel>
+        <CFormInput value={odometer} onChange={(event) => setOdometer(event.target.value)} />
+      </div>
+      <div>
+        <CFormLabel>Tutar (TL)</CFormLabel>
+        <CFormInput value={cost} onChange={(event) => setCost(event.target.value)} />
+      </div>
+      <div>
+        <CFormLabel>Servis</CFormLabel>
+        <CFormInput value={workshop} onChange={(event) => setWorkshop(event.target.value)} />
+      </div>
+      <div>
+        <CFormLabel>Not</CFormLabel>
+        <CFormInput value={note} onChange={(event) => setNote(event.target.value)} />
+      </div>
+      <CButton type="submit" color="primary">
         Ekle
-      </Button>
-    </Stack>
+      </CButton>
+    </form>
   );
 }
 
@@ -422,30 +478,48 @@ function TireForm({ vehicleId, defaultKm, onSaved }: { vehicleId: string; defaul
   }
 
   return (
-    <Stack component="form" spacing={1.5} onSubmit={submit}>
-      <Typography variant="subtitle2">Yeni lastik olayı</Typography>
-      <TextField select label="Konum" value={position} onChange={(event) => setPosition(event.target.value)}>
-        {TIRE_POS.map(([value, label]) => (
-          <MenuItem key={value} value={value}>
-            {label}
-          </MenuItem>
-        ))}
-      </TextField>
-      <TextField select label="Olay" value={eventKind} onChange={(event) => setEventKind(event.target.value)}>
-        {TIRE_EVENT.map(([value, label]) => (
-          <MenuItem key={value} value={value}>
-            {label}
-          </MenuItem>
-        ))}
-      </TextField>
-      <TextField label="Marka / ebat" value={brand} onChange={(event) => setBrand(event.target.value)} />
-      <TextField label="Tarih" type="datetime-local" value={happenedAt} onChange={(event) => setHappenedAt(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} required />
-      <TextField label="Km" value={odometer} onChange={(event) => setOdometer(event.target.value)} />
-      <TextField label="Not" value={note} onChange={(event) => setNote(event.target.value)} />
-      <Button type="submit" variant="contained">
+    <form className="d-flex flex-column gap-3" onSubmit={submit}>
+      <div className="fw-semibold">Yeni lastik olayı</div>
+      <div>
+        <CFormLabel>Konum</CFormLabel>
+        <CFormSelect value={position} onChange={(event) => setPosition(event.target.value)}>
+          {TIRE_POS.map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </CFormSelect>
+      </div>
+      <div>
+        <CFormLabel>Olay</CFormLabel>
+        <CFormSelect value={eventKind} onChange={(event) => setEventKind(event.target.value)}>
+          {TIRE_EVENT.map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </CFormSelect>
+      </div>
+      <div>
+        <CFormLabel>Marka / ebat</CFormLabel>
+        <CFormInput value={brand} onChange={(event) => setBrand(event.target.value)} />
+      </div>
+      <div>
+        <CFormLabel>Tarih</CFormLabel>
+        <CFormInput type="datetime-local" value={happenedAt} onChange={(event) => setHappenedAt(event.target.value)} required />
+      </div>
+      <div>
+        <CFormLabel>Km</CFormLabel>
+        <CFormInput value={odometer} onChange={(event) => setOdometer(event.target.value)} />
+      </div>
+      <div>
+        <CFormLabel>Not</CFormLabel>
+        <CFormInput value={note} onChange={(event) => setNote(event.target.value)} />
+      </div>
+      <CButton type="submit" color="primary">
         Ekle
-      </Button>
-    </Stack>
+      </CButton>
+    </form>
   );
 }
 
@@ -486,18 +560,36 @@ function FuelForm({ vehicleId, defaultKm, onSaved }: { vehicleId: string; defaul
   }
 
   return (
-    <Stack component="form" spacing={1.5} onSubmit={submit}>
-      <Typography variant="subtitle2">Yeni dolum</Typography>
-      <TextField label="Tarih" type="datetime-local" value={happenedAt} onChange={(event) => setHappenedAt(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} required />
-      <TextField label="Litre" value={liters} onChange={(event) => setLiters(event.target.value)} />
-      <TextField label="Tutar (TL)" value={amount} onChange={(event) => setAmount(event.target.value)} />
-      <TextField label="Km" value={odometer} onChange={(event) => setOdometer(event.target.value)} />
-      <TextField label="İstasyon" value={station} onChange={(event) => setStation(event.target.value)} />
-      <TextField label="Not" value={note} onChange={(event) => setNote(event.target.value)} />
-      <Button type="submit" variant="contained">
+    <form className="d-flex flex-column gap-3" onSubmit={submit}>
+      <div className="fw-semibold">Yeni dolum</div>
+      <div>
+        <CFormLabel>Tarih</CFormLabel>
+        <CFormInput type="datetime-local" value={happenedAt} onChange={(event) => setHappenedAt(event.target.value)} required />
+      </div>
+      <div>
+        <CFormLabel>Litre</CFormLabel>
+        <CFormInput value={liters} onChange={(event) => setLiters(event.target.value)} />
+      </div>
+      <div>
+        <CFormLabel>Tutar (TL)</CFormLabel>
+        <CFormInput value={amount} onChange={(event) => setAmount(event.target.value)} />
+      </div>
+      <div>
+        <CFormLabel>Km</CFormLabel>
+        <CFormInput value={odometer} onChange={(event) => setOdometer(event.target.value)} />
+      </div>
+      <div>
+        <CFormLabel>İstasyon</CFormLabel>
+        <CFormInput value={station} onChange={(event) => setStation(event.target.value)} />
+      </div>
+      <div>
+        <CFormLabel>Not</CFormLabel>
+        <CFormInput value={note} onChange={(event) => setNote(event.target.value)} />
+      </div>
+      <CButton type="submit" color="primary">
         Ekle
-      </Button>
-    </Stack>
+      </CButton>
+    </form>
   );
 }
 

@@ -1,21 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
-import Alert from "@mui/material/Alert";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
-import CardHeader from "@mui/material/CardHeader";
-import MenuItem from "@mui/material/MenuItem";
-import Stack from "@mui/material/Stack";
-import Tab from "@mui/material/Tab";
-import Tabs from "@mui/material/Tabs";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
-import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
+import {
+  CAlert,
+  CButton,
+  CCard,
+  CCardBody,
+  CCardHeader,
+  CFormInput,
+  CFormLabel,
+  CFormSelect,
+  CNav,
+  CNavItem,
+  CNavLink,
+  CTable,
+  CTableBody,
+  CTableDataCell,
+  CTableHead,
+  CTableHeaderCell,
+  CTableRow,
+} from "@coreui/react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { download, api } from "../api";
 import { useSession } from "../session";
@@ -102,102 +104,118 @@ export function Raporlar({ initialReport = "" }: { initialReport?: string }) {
   const showDirection = slug === "operasyon" || slug === "filo";
 
   return (
-    <Stack spacing={2}>
-      <Stack direction={{ xs: "column", md: "row" }} sx={{ justifyContent: "space-between", gap: 2, alignItems: { md: "center" } }}>
-        <Box>
-          <Typography variant="h4">Raporlar</Typography>
-          <Typography color="text.secondary" variant="body2">
-            Dönemsel özet. Masa anlık kalır; burası geçmişe bakar.
-          </Typography>
-        </Box>
-        <Button
-          variant="outlined"
+    <div className="d-flex flex-column gap-3">
+      <div className="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-md-center">
+        <div>
+          <h1 className="h3 mb-1">Raporlar</h1>
+          <div className="text-body-secondary small">Dönemsel özet. Masa anlık kalır; burası geçmişe bakar.</div>
+        </div>
+        <CButton
+          color="secondary"
+          variant="outline"
           onClick={() => {
             notice("");
-            download(`/reports/${slug}/export?${query}`, token ?? "", `${slug}-${fromDay}-${toDay}.xlsx`).catch((err: Error) => notice(err.message));
+            download(`/reports/${slug}/export?${query}`, token ?? "", `${slug}-${fromDay}-${toDay}.xlsx`).catch((err: Error) =>
+              notice(err.message),
+            );
           }}
         >
           Excel indir
-        </Button>
-      </Stack>
+        </CButton>
+      </div>
 
-      <Card>
-        <CardContent>
-          <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ flexWrap: "wrap" }}>
-            <TextField select label="Dönem" value={preset} onChange={(event) => setPreset(event.target.value)} sx={{ minWidth: 140 }}>
-              <MenuItem value="1">Bugün</MenuItem>
-              <MenuItem value="7">7 gün</MenuItem>
-              <MenuItem value="30">30 gün</MenuItem>
-              <MenuItem value="ozel">Özel</MenuItem>
-            </TextField>
-            <TextField
-              label="Başlangıç"
-              type="date"
-              value={fromDay}
-              onChange={(event) => {
-                setPreset("ozel");
-                setFromDay(event.target.value);
-              }}
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-            <TextField
-              label="Bitiş"
-              type="date"
-              value={toDay}
-              onChange={(event) => {
-                setPreset("ozel");
-                setToDay(event.target.value);
-              }}
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
+      <CCard>
+        <CCardBody>
+          <div className="row g-3">
+            <div className="col-12 col-md-auto" style={{ minWidth: 140 }}>
+              <CFormLabel>Dönem</CFormLabel>
+              <CFormSelect value={preset} onChange={(event) => setPreset(event.target.value)}>
+                <option value="1">Bugün</option>
+                <option value="7">7 gün</option>
+                <option value="30">30 gün</option>
+                <option value="ozel">Özel</option>
+              </CFormSelect>
+            </div>
+            <div className="col-12 col-md-auto">
+              <CFormLabel>Başlangıç</CFormLabel>
+              <CFormInput
+                type="date"
+                value={fromDay}
+                onChange={(event) => {
+                  setPreset("ozel");
+                  setFromDay(event.target.value);
+                }}
+              />
+            </div>
+            <div className="col-12 col-md-auto">
+              <CFormLabel>Bitiş</CFormLabel>
+              <CFormInput
+                type="date"
+                value={toDay}
+                onChange={(event) => {
+                  setPreset("ozel");
+                  setToDay(event.target.value);
+                }}
+              />
+            </div>
             {showDirection ? (
-              <TextField select label="Yön" value={direction} onChange={(event) => setDirection(event.target.value)} sx={{ minWidth: 140 }}>
-                <MenuItem value="">Hepsi</MenuItem>
-                <MenuItem value="gidis">Gidiş</MenuItem>
-                <MenuItem value="donus">Dönüş</MenuItem>
-              </TextField>
+              <div className="col-12 col-md-auto" style={{ minWidth: 140 }}>
+                <CFormLabel>Yön</CFormLabel>
+                <CFormSelect value={direction} onChange={(event) => setDirection(event.target.value)}>
+                  <option value="">Hepsi</option>
+                  <option value="gidis">Gidiş</option>
+                  <option value="donus">Dönüş</option>
+                </CFormSelect>
+              </div>
             ) : null}
-          </Stack>
-        </CardContent>
-      </Card>
+          </div>
+        </CCardBody>
+      </CCard>
 
-      <Tabs
-        value={slug}
-        onChange={(_, next) => choose(next)}
-        variant="scrollable"
-        scrollButtons="auto"
-        sx={{ borderBottom: 1, borderColor: "divider" }}
-      >
+      <CNav variant="tabs" role="tablist" className="flex-nowrap overflow-auto">
         {REPORTS.map((item) => (
-          <Tab key={item.slug} value={item.slug} label={item.title} />
+          <CNavItem key={item.slug}>
+            <CNavLink
+              href={`#raporlar/${item.slug}`}
+              active={slug === item.slug}
+              onClick={(event) => {
+                event.preventDefault();
+                choose(item.slug);
+              }}
+              style={{ whiteSpace: "nowrap" }}
+            >
+              {item.title}
+            </CNavLink>
+          </CNavItem>
         ))}
-      </Tabs>
+      </CNav>
 
-      {loading && !report ? <Alert severity="info">Rapor yükleniyor</Alert> : null}
+      {loading && !report ? <CAlert color="info">Rapor yükleniyor</CAlert> : null}
       {report ? (
         <>
-          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr 1fr", lg: "repeat(4, 1fr)" } }}>
+          <div className="row g-3">
             {report.kpis.map((item) => (
-              <Card key={item.key}>
-                <CardContent>
-                  <Typography color="text.secondary" variant="overline">
-                    {item.label}
-                  </Typography>
-                  <Typography variant="h4">{item.value}</Typography>
-                  {item.hint ? (
-                    <Typography variant="caption" color="text.secondary">
-                      {item.hint}
-                    </Typography>
-                  ) : null}
-                </CardContent>
-              </Card>
+              <div key={item.key} className="col-6 col-lg-3">
+                <CCard className="h-100">
+                  <CCardBody>
+                    <div className="text-uppercase small text-body-secondary">{item.label}</div>
+                    <div className="h3 mb-0">{item.value}</div>
+                    {item.hint ? <div className="small text-body-secondary">{item.hint}</div> : null}
+                  </CCardBody>
+                </CCard>
+              </div>
             ))}
-          </Box>
+          </div>
 
           {report.series.length ? (
-            <Card>
-              <CardHeader title="Trend" subheader={`${report.from_day} – ${report.to_day}`} />
-              <CardContent sx={{ height: 280 }}>
+            <CCard>
+              <CCardHeader>
+                <strong>Trend</strong>
+                <div className="small text-body-secondary">
+                  {report.from_day} – {report.to_day}
+                </div>
+              </CCardHeader>
+              <CCardBody style={{ height: 280 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={report.series}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -207,29 +225,30 @@ export function Raporlar({ initialReport = "" }: { initialReport?: string }) {
                     <Bar dataKey="value" fill="#1877F2" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
-              </CardContent>
-            </Card>
+              </CCardBody>
+            </CCard>
           ) : null}
 
           {report.columns.length ? (
-            <Card>
-              <CardHeader title="Detay" />
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
+            <CCard>
+              <CCardHeader>
+                <strong>Detay</strong>
+              </CCardHeader>
+              <CTable small hover responsive className="mb-0">
+                <CTableHead>
+                  <CTableRow>
                     {report.columns
                       .filter((column) => column !== "driver_id")
                       .map((column) => (
-                        <TableCell key={column}>{column}</TableCell>
+                        <CTableHeaderCell key={column}>{column}</CTableHeaderCell>
                       ))}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
+                  </CTableRow>
+                </CTableHead>
+                <CTableBody>
                   {report.rows.map((row, index) => (
-                    <TableRow
+                    <CTableRow
                       key={index}
-                      hover={slug === "takograf" && Boolean(row.driver_id)}
-                      sx={slug === "takograf" && row.driver_id ? { cursor: "pointer" } : undefined}
+                      style={slug === "takograf" && row.driver_id ? { cursor: "pointer" } : undefined}
                       onClick={() => {
                         if (slug === "takograf" && row.driver_id) window.location.hash = `takograf/${row.driver_id}`;
                       }}
@@ -237,23 +256,23 @@ export function Raporlar({ initialReport = "" }: { initialReport?: string }) {
                       {report.columns
                         .filter((column) => column !== "driver_id")
                         .map((column) => (
-                          <TableCell key={column}>{row[column] ?? ""}</TableCell>
+                          <CTableDataCell key={column}>{row[column] ?? ""}</CTableDataCell>
                         ))}
-                    </TableRow>
+                    </CTableRow>
                   ))}
                   {report.rows.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={report.columns.length}>
-                        <Typography color="text.secondary">Bu dönemde satır yok.</Typography>
-                      </TableCell>
-                    </TableRow>
+                    <CTableRow>
+                      <CTableDataCell colSpan={report.columns.length}>
+                        <span className="text-body-secondary">Bu dönemde satır yok.</span>
+                      </CTableDataCell>
+                    </CTableRow>
                   ) : null}
-                </TableBody>
-              </Table>
-            </Card>
+                </CTableBody>
+              </CTable>
+            </CCard>
           ) : null}
         </>
       ) : null}
-    </Stack>
+    </div>
   );
 }

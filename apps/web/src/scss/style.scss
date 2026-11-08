@@ -1,0 +1,105 @@
+@use "@coreui/coreui/scss/coreui" as * with (
+  $enable-deprecation-messages: false
+);
+@use "vendors/simplebar";
+
+body {
+  background-color: var(--cui-tertiary-bg);
+}
+
+.wrapper {
+  width: 100%;
+  padding-inline: var(--cui-sidebar-occupy-start, 0) var(--cui-sidebar-occupy-end, 0);
+  will-change: auto;
+  @include transition(padding 0.15s);
+}
+
+.header > .container-fluid,
+.sidebar-header {
+  min-height: calc(4rem + 1px);
+}
+
+.sidebar-brand-full {
+  margin-left: 3px;
+}
+
+.sidebar-toggler {
+  margin-inline-start: auto;
+}
+
+.footer {
+  min-height: calc(3rem + 1px);
+}
+
+.auth-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--cui-body-bg);
+  position: relative;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    opacity: 0.28;
+    background-image: url(/auth-overlay.svg);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    pointer-events: none;
+  }
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+.brand-wordmark {
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  line-height: 1;
+}
+
+.map-host {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+}
+
+.vehicle-popup {
+  position: absolute;
+  z-index: 2;
+  max-height: calc(100% - 1.5rem);
+  overflow-y: auto;
+  width: min(320px, calc(100% - 1rem));
+}
+
+.list-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.live-map-panel {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  height: 420px;
+}
+
+@media (max-width: 991.98px) {
+  .live-map-panel {
+    height: 340px;
+  }
+}

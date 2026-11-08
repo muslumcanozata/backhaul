@@ -1,15 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import Alert from "@mui/material/Alert";
-import Button from "@mui/material/Button";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
-import CardHeader from "@mui/material/CardHeader";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import Checkbox from "@mui/material/Checkbox";
-import Stack from "@mui/material/Stack";
-import Switch from "@mui/material/Switch";
-import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
+import { CAlert, CButton, CCard, CCardBody, CCardHeader, CFormCheck, CFormInput, CFormLabel, CFormSwitch } from "@coreui/react";
 import { api } from "../api";
 import { useFleet } from "../fleet-data";
 import { CATALOG, TRAILER_LABEL } from "../labels";
@@ -106,76 +96,116 @@ export function Ayarlar() {
   }
 
   return (
-    <Card component="form" onSubmit={save} sx={{ maxWidth: 640 }}>
-      <CardHeader
-        title="Ayarlar"
-        subheader={`Sinyal tazeliği ${settings?.gps_stale_minutes ?? 15} dakika. Dönüş hesabı iki kilometre maliyeti de dolunca çalışır.`}
-      />
-      <CardContent>
-        <Stack spacing={2}>
-          <Stack>
+    <CCard style={{ maxWidth: 640 }}>
+      <CCardHeader>
+        <strong>Ayarlar</strong>
+        <div className="small text-body-secondary">
+          Sinyal tazeliği {settings?.gps_stale_minutes ?? 15} dakika. Dönüş hesabı iki kilometre maliyeti de dolunca çalışır.
+        </div>
+      </CCardHeader>
+      <CCardBody>
+        <form className="d-flex flex-column gap-3" onSubmit={save}>
+          <div className="d-flex flex-column gap-2">
             {CATALOG.map((type) => (
-              <FormControlLabel
-                key={type}
-                control={<Checkbox checked={types.includes(type)} onChange={() => toggle(type)} />}
-                label={TRAILER_LABEL[type]}
-              />
+              <CFormCheck key={type} id={`trailer-${type}`} label={TRAILER_LABEL[type]} checked={types.includes(type)} onChange={() => toggle(type)} />
             ))}
-          </Stack>
-          <TextField label="Boş kilometre maliyeti (TL)" value={emptyCost} onChange={(event) => setEmptyCost(event.target.value)} slotProps={{ htmlInput: { inputMode: "decimal" } }} />
-          <TextField label="Dolu kilometre maliyeti (TL)" value={loadedCost} onChange={(event) => setLoadedCost(event.target.value)} slotProps={{ htmlInput: { inputMode: "decimal" } }} />
-          <TextField label="Günlük sürüş limiti (dakika)" value={dailyLimit} onChange={(event) => setDailyLimit(event.target.value)} slotProps={{ htmlInput: { inputMode: "numeric" } }} />
-          <TextField label="Ön uyarı payı (dakika)" value={warningLead} onChange={(event) => setWarningLead(event.target.value)} helperText="Yasal paket 540 dakika ve 30 dakika pay. Firma bu değerleri küçültebilir." slotProps={{ htmlInput: { inputMode: "numeric" } }} />
-          <FormControlLabel control={<Checkbox checked={approval} onChange={() => setApproval((value) => !value)} />} label="Dönüş atamasında onay iste" />
-          <FormControlLabel control={<Checkbox checked={estimatedAuto} onChange={() => setEstimatedAuto((value) => !value)} />} label="Tahmini takografla otomatik dönüş" />
-          <TextField label="Üs noktası: il" value={baseIl} onChange={(event) => setBaseIl(event.target.value)} helperText="Dönüş zinciri buraya dönüşle biter. Boş bırakılırsa son boşaltmada biter." />
-          <TextField label="Üs noktası: ilçe" value={baseIlce} onChange={(event) => setBaseIlce(event.target.value)} helperText="Boşsa Merkez kabul edilir." />
-          <FormControlLabel
-            control={<Switch checked={tollEnabled} onChange={(_, checked) => setTollEnabled(checked)} />}
-            label="Köprü ve otoyol ücretini Routes API'den hesapla"
+          </div>
+          <div>
+            <CFormLabel>Boş kilometre maliyeti (TL)</CFormLabel>
+            <CFormInput value={emptyCost} onChange={(event) => setEmptyCost(event.target.value)} inputMode="decimal" />
+          </div>
+          <div>
+            <CFormLabel>Dolu kilometre maliyeti (TL)</CFormLabel>
+            <CFormInput value={loadedCost} onChange={(event) => setLoadedCost(event.target.value)} inputMode="decimal" />
+          </div>
+          <div>
+            <CFormLabel>Günlük sürüş limiti (dakika)</CFormLabel>
+            <CFormInput value={dailyLimit} onChange={(event) => setDailyLimit(event.target.value)} inputMode="numeric" />
+          </div>
+          <div>
+            <CFormLabel>Ön uyarı payı (dakika)</CFormLabel>
+            <CFormInput value={warningLead} onChange={(event) => setWarningLead(event.target.value)} inputMode="numeric" />
+            <div className="form-text">Yasal paket 540 dakika ve 30 dakika pay. Firma bu değerleri küçültebilir.</div>
+          </div>
+          <CFormCheck id="return-approval" label="Dönüş atamasında onay iste" checked={approval} onChange={() => setApproval((value) => !value)} />
+          <CFormCheck
+            id="estimated-auto"
+            label="Tahmini takografla otomatik dönüş"
+            checked={estimatedAuto}
+            onChange={() => setEstimatedAuto((value) => !value)}
           />
-          <Typography variant="caption" color="text.secondary">
-            Açıkken Routes istekleri daha pahalı SKU'ya geçer. Ücret gelmeyen yük otomatik atanmaz. Binek araç fiyatı döner, ağır vasıta farklı olabilir.
-          </Typography>
-          <Typography variant="body2">
-            Bugün {settings?.routes_today ?? 0} / {settings?.routes_allowed ?? 333} Routes isteği · {settings?.routes_cache_hits ?? 0} cache isabeti
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            İlk {settings?.routes_limit ?? 333} istek otomatik (aylık ücretsiz Essentials ≈ 10.000). Üstü için onay gerekir. Canlı konum 5 km hücrede tutulur, aynı rota tekrar sorulmaz.
-          </Typography>
+          <div>
+            <CFormLabel>Üs noktası: il</CFormLabel>
+            <CFormInput value={baseIl} onChange={(event) => setBaseIl(event.target.value)} />
+            <div className="form-text">Dönüş zinciri buraya dönüşle biter. Boş bırakılırsa son boşaltmada biter.</div>
+          </div>
+          <div>
+            <CFormLabel>Üs noktası: ilçe</CFormLabel>
+            <CFormInput value={baseIlce} onChange={(event) => setBaseIlce(event.target.value)} />
+            <div className="form-text">Boşsa Merkez kabul edilir.</div>
+          </div>
+          <CFormSwitch
+            id="toll-enabled"
+            label="Köprü ve otoyol ücretini Routes API'den hesapla"
+            checked={tollEnabled}
+            onChange={(event) => setTollEnabled(event.target.checked)}
+          />
+          <div className="small text-body-secondary">
+            Açıkken Routes istekleri daha pahalı SKU'ya geçer. Ücret gelmeyen yük otomatik atanmaz. Binek araç fiyatı döner, ağır vasıta
+            farklı olabilir.
+          </div>
+          <div>
+            Bugün {settings?.routes_today ?? 0} / {settings?.routes_allowed ?? 333} Routes isteği · {settings?.routes_cache_hits ?? 0} cache
+            isabeti
+          </div>
+          <div className="small text-body-secondary">
+            İlk {settings?.routes_limit ?? 333} istek otomatik (aylık ücretsiz Essentials ≈ 10.000). Üstü için onay gerekir. Canlı konum 5 km
+            hücrede tutulur, aynı rota tekrar sorulmaz.
+          </div>
           {settings?.routes_needs_approval ? (
-            <Alert
-              severity="warning"
-              action={
-                <Button color="inherit" size="small" onClick={() => void approveRoutes()}>
-                  {settings.routes_limit} daha onayla
-                </Button>
-              }
-            >
-              Günlük Routes tavanı doldu{settings.routes_blocked ? ` · ${settings.routes_blocked} rota bekliyor` : ""}. Onaylayınca plan yeniden çalışır.
-            </Alert>
+            <CAlert color="warning" className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-0">
+              <span>
+                Günlük Routes tavanı doldu{settings.routes_blocked ? ` · ${settings.routes_blocked} rota bekliyor` : ""}. Onaylayınca plan
+                yeniden çalışır.
+              </span>
+              <CButton color="warning" size="sm" onClick={() => void approveRoutes()}>
+                {settings.routes_limit} daha onayla
+              </CButton>
+            </CAlert>
           ) : null}
-          <Button type="submit" variant="contained">
+          <CButton type="submit" color="primary">
             Kaydet
-          </Button>
-          {saved ? <Alert severity="success">{saved}</Alert> : null}
+          </CButton>
+          {saved ? <CAlert color="success" className="mb-0">{saved}</CAlert> : null}
 
-          <Typography variant="h6">Konum sağlayıcıları</Typography>
-          <Typography variant="body2" color="text.secondary">
+          <h2 className="h5 mb-0">Konum sağlayıcıları</h2>
+          <div className="text-body-secondary">
             Her sağlayıcı bu firmaya özeldir; ikisi birden açık olabilir. Kapalıyken sırlar saklı kalsa bile istek atılmaz.
-          </Typography>
-          <FormControlLabel
-            control={<Switch checked={arventoEnabled} onChange={(_, checked) => setArventoEnabled(checked)} />}
+          </div>
+          <CFormSwitch
+            id="arvento-enabled"
             label={settings?.arvento_configured ? "Arvento açık (kayıt var)" : "Arvento açık (kayıt eksik)"}
+            checked={arventoEnabled}
+            onChange={(event) => setArventoEnabled(event.target.checked)}
           />
           {arventoEnabled ? (
-            <Stack spacing={1.5}>
-              <TextField label="Arvento kullanıcı" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="off" />
-              <TextField label="PIN1" type="password" value={pin1} onChange={(event) => setPin1(event.target.value)} autoComplete="new-password" />
-              <TextField label="PIN2" type="password" value={pin2} onChange={(event) => setPin2(event.target.value)} autoComplete="new-password" />
-              <Button
+            <div className="d-flex flex-column gap-3">
+              <div>
+                <CFormLabel>Arvento kullanıcı</CFormLabel>
+                <CFormInput value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="off" />
+              </div>
+              <div>
+                <CFormLabel>PIN1</CFormLabel>
+                <CFormInput type="password" value={pin1} onChange={(event) => setPin1(event.target.value)} autoComplete="new-password" />
+              </div>
+              <div>
+                <CFormLabel>PIN2</CFormLabel>
+                <CFormInput type="password" value={pin2} onChange={(event) => setPin2(event.target.value)} autoComplete="new-password" />
+              </div>
+              <CButton
                 type="button"
-                variant="outlined"
+                color="secondary"
+                variant="outline"
                 onClick={async () => {
                   notice("");
                   setSaved("");
@@ -192,26 +222,43 @@ export function Ayarlar() {
                 }}
               >
                 Arvento kaydet
-              </Button>
-            </Stack>
+              </CButton>
+            </div>
           ) : null}
 
-          <FormControlLabel
-            control={<Switch checked={seyirEnabled} onChange={(_, checked) => setSeyirEnabled(checked)} />}
+          <CFormSwitch
+            id="seyir-enabled"
             label={settings?.seyir_configured ? "Seyir açık (kayıt var)" : "Seyir açık (kayıt eksik)"}
+            checked={seyirEnabled}
+            onChange={(event) => setSeyirEnabled(event.target.checked)}
           />
           {seyirEnabled ? (
-            <Stack spacing={1.5}>
-              <TextField label="Seyir kullanıcı adı" value={seyirUser} onChange={(event) => setSeyirUser(event.target.value)} autoComplete="off" />
-              <TextField label="Seyir şifre" type="password" value={seyirPassword} onChange={(event) => setSeyirPassword(event.target.value)} autoComplete="new-password" />
-              <Button
+            <div className="d-flex flex-column gap-3">
+              <div>
+                <CFormLabel>Seyir kullanıcı adı</CFormLabel>
+                <CFormInput value={seyirUser} onChange={(event) => setSeyirUser(event.target.value)} autoComplete="off" />
+              </div>
+              <div>
+                <CFormLabel>Seyir şifre</CFormLabel>
+                <CFormInput
+                  type="password"
+                  value={seyirPassword}
+                  onChange={(event) => setSeyirPassword(event.target.value)}
+                  autoComplete="new-password"
+                />
+              </div>
+              <CButton
                 type="button"
-                variant="outlined"
+                color="secondary"
+                variant="outline"
                 onClick={async () => {
                   notice("");
                   setSaved("");
                   try {
-                    await api("/settings/seyir", token, { method: "PUT", body: JSON.stringify({ username: seyirUser, password: seyirPassword }) });
+                    await api("/settings/seyir", token, {
+                      method: "PUT",
+                      body: JSON.stringify({ username: seyirUser, password: seyirPassword }),
+                    });
                     setSeyirUser("");
                     setSeyirPassword("");
                     setSaved("Seyir kaydı yazıldı");
@@ -222,22 +269,35 @@ export function Ayarlar() {
                 }}
               >
                 Seyir kaydet
-              </Button>
-            </Stack>
+              </CButton>
+            </div>
           ) : null}
 
-          <Typography variant="h6">{settings?.netgsm_configured ? "Netgsm kaydı var" : "Netgsm kaydı eksik"}</Typography>
-          <TextField label="Netgsm kullanıcı kodu" value={usercode} onChange={(event) => setUsercode(event.target.value)} autoComplete="off" />
-          <TextField label="Netgsm şifre" type="password" value={smsPassword} onChange={(event) => setSmsPassword(event.target.value)} autoComplete="new-password" />
-          <TextField label="Mesaj başlığı" value={smsHeader} onChange={(event) => setSmsHeader(event.target.value)} autoComplete="off" />
-          <Button
+          <h2 className="h5 mb-0">{settings?.netgsm_configured ? "Netgsm kaydı var" : "Netgsm kaydı eksik"}</h2>
+          <div>
+            <CFormLabel>Netgsm kullanıcı kodu</CFormLabel>
+            <CFormInput value={usercode} onChange={(event) => setUsercode(event.target.value)} autoComplete="off" />
+          </div>
+          <div>
+            <CFormLabel>Netgsm şifre</CFormLabel>
+            <CFormInput type="password" value={smsPassword} onChange={(event) => setSmsPassword(event.target.value)} autoComplete="new-password" />
+          </div>
+          <div>
+            <CFormLabel>Mesaj başlığı</CFormLabel>
+            <CFormInput value={smsHeader} onChange={(event) => setSmsHeader(event.target.value)} autoComplete="off" />
+          </div>
+          <CButton
             type="button"
-            variant="outlined"
+            color="secondary"
+            variant="outline"
             onClick={async () => {
               notice("");
               setSaved("");
               try {
-                await api("/settings/netgsm", token, { method: "PUT", body: JSON.stringify({ usercode, password: smsPassword, header: smsHeader }) });
+                await api("/settings/netgsm", token, {
+                  method: "PUT",
+                  body: JSON.stringify({ usercode, password: smsPassword, header: smsHeader }),
+                });
                 setUsercode("");
                 setSmsPassword("");
                 setSmsHeader("");
@@ -249,9 +309,9 @@ export function Ayarlar() {
             }}
           >
             Netgsm kaydet
-          </Button>
-        </Stack>
-      </CardContent>
-    </Card>
+          </CButton>
+        </form>
+      </CCardBody>
+    </CCard>
   );
 }

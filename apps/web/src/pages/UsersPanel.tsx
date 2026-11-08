@@ -1,13 +1,5 @@
 import { FormEvent, useState } from "react";
-import Alert from "@mui/material/Alert";
-import Button from "@mui/material/Button";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
-import CardHeader from "@mui/material/CardHeader";
-import MenuItem from "@mui/material/MenuItem";
-import Stack from "@mui/material/Stack";
-import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
+import { CAlert, CButton, CCard, CCardBody, CCardHeader, CFormInput, CFormLabel, CFormSelect } from "@coreui/react";
 import { api } from "../api";
 import { ROLE_LABEL } from "../labels";
 import { useSession } from "../session";
@@ -63,68 +55,79 @@ export function UsersPanel({
   }
 
   return (
-    <Stack spacing={3}>
-      <Stack spacing={1}>
+    <div className="d-flex flex-column gap-3">
+      <div className="d-flex flex-column gap-2">
         {users.map((target) => {
           const locked = target.id === user.id || (user.role === "tenant_admin" && target.role === "tenant_admin");
           const choices = user.role === "platform_admin" ? FIRM : STAFF;
           return (
-            <Card key={target.id} variant="outlined" sx={{ boxShadow: "none" }}>
-              <CardContent>
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ alignItems: { sm: "center" }, justifyContent: "space-between" }}>
+            <CCard key={target.id} className="border shadow-none">
+              <CCardBody>
+                <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2">
                   <div>
-                    <Typography variant="subtitle1">{target.email}</Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <div className="fw-semibold">{target.email}</div>
+                    <div className="small text-body-secondary">
                       {ROLE_LABEL[target.role]} · {target.active ? "Açık" : "Kapalı"}
-                    </Typography>
+                    </div>
                   </div>
                   {locked ? null : (
-                    <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                      <TextField
-                        select
-                        size="small"
-                        label="Rol"
-                        value={target.role}
-                        onChange={(event) => patch(target, { role: event.target.value as Role })}
-                        sx={{ minWidth: 180 }}
-                      >
-                        {choices.map((item) => (
-                          <MenuItem key={item} value={item}>
-                            {ROLE_LABEL[item]}
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                      <Button variant="outlined" onClick={() => patch(target, { active: !target.active })}>
+                    <div className="d-flex flex-wrap align-items-center gap-2">
+                      <div style={{ minWidth: 180 }}>
+                        <CFormLabel className="visually-hidden">Rol</CFormLabel>
+                        <CFormSelect
+                          size="sm"
+                          value={target.role}
+                          onChange={(event) => patch(target, { role: event.target.value as Role })}
+                        >
+                          {choices.map((item) => (
+                            <option key={item} value={item}>
+                              {ROLE_LABEL[item]}
+                            </option>
+                          ))}
+                        </CFormSelect>
+                      </div>
+                      <CButton color="secondary" variant="outline" size="sm" onClick={() => patch(target, { active: !target.active })}>
                         {target.active ? "Erişimi kapat" : "Erişimi aç"}
-                      </Button>
-                    </Stack>
+                      </CButton>
+                    </div>
                   )}
-                </Stack>
-              </CardContent>
-            </Card>
+                </div>
+              </CCardBody>
+            </CCard>
           );
         })}
-      </Stack>
-      <Card component="form" onSubmit={create}>
-        <CardHeader title="Yeni kullanıcı" />
-        <CardContent>
-          <Stack spacing={2}>
-            <TextField label="E-posta" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
-            <TextField label="Parola" type="password" value={password} onChange={(event) => setPassword(event.target.value)} slotProps={{ htmlInput: { minLength: 8 } }} required />
-            <TextField select label="Rol" value={role} onChange={(event) => setRole(event.target.value as Role)}>
-              {roles.map((item) => (
-                <MenuItem key={item} value={item}>
-                  {ROLE_LABEL[item]}
-                </MenuItem>
-              ))}
-            </TextField>
-            <Button type="submit" variant="contained">
+      </div>
+      <CCard>
+        <CCardHeader>
+          <strong>Yeni kullanıcı</strong>
+        </CCardHeader>
+        <CCardBody>
+          <form className="d-flex flex-column gap-3" onSubmit={create}>
+            <div>
+              <CFormLabel>E-posta</CFormLabel>
+              <CFormInput type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+            </div>
+            <div>
+              <CFormLabel>Parola</CFormLabel>
+              <CFormInput type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} required />
+            </div>
+            <div>
+              <CFormLabel>Rol</CFormLabel>
+              <CFormSelect value={role} onChange={(event) => setRole(event.target.value as Role)}>
+                {roles.map((item) => (
+                  <option key={item} value={item}>
+                    {ROLE_LABEL[item]}
+                  </option>
+                ))}
+              </CFormSelect>
+            </div>
+            <CButton type="submit" color="primary">
               Kullanıcı aç
-            </Button>
-            {saved ? <Alert severity="success">{saved}</Alert> : null}
-          </Stack>
-        </CardContent>
-      </Card>
-    </Stack>
+            </CButton>
+            {saved ? <CAlert color="success" className="mb-0">{saved}</CAlert> : null}
+          </form>
+        </CCardBody>
+      </CCard>
+    </div>
   );
 }

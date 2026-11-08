@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
-import { BellIcon } from "@phosphor-icons/react";
-import Badge from "@mui/material/Badge";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Divider from "@mui/material/Divider";
-import IconButton from "@mui/material/IconButton";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import ListItemText from "@mui/material/ListItemText";
-import Popover from "@mui/material/Popover";
-import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
+import {
+  CBadge,
+  CButton,
+  CDropdown,
+  CDropdownHeader,
+  CDropdownItem,
+  CDropdownMenu,
+  CDropdownToggle,
+} from "@coreui/react";
+import CIcon from "@coreui/icons-react";
+import { cilBell } from "@coreui/icons";
 import { api } from "../api";
 import { ALERT_LABEL, canOperate } from "../labels";
 import { useSession } from "../session";
@@ -20,7 +19,6 @@ export function AlertBell() {
   const { token, user, notice } = useSession();
   const [rows, setRows] = useState<AlertItem[]>([]);
   const [plates, setPlates] = useState<Map<string, string>>(new Map());
-  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const unseen = rows.filter((row) => !row.seen_at).length;
 
   const reload = useCallback(async () => {
@@ -48,73 +46,55 @@ export function AlertBell() {
   }
 
   return (
-    <>
-      <IconButton
-        aria-label="Uyarılar"
-        onClick={(event) => {
-          setAnchor(event.currentTarget);
-          reload().catch(() => undefined);
-        }}
-        sx={{ color: "text.secondary" }}
-      >
-        <Badge badgeContent={unseen} color="error" max={99}>
-          <BellIcon size={22} weight={unseen ? "fill" : "regular"} />
-        </Badge>
-      </IconButton>
-      <Popover
-        open={Boolean(anchor)}
-        anchorEl={anchor}
-        onClose={() => setAnchor(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
-        slotProps={{ paper: { sx: { width: 360, maxWidth: "92vw", mt: 1 } } }}
-      >
-        <Stack direction="row" sx={{ px: 2, py: 1.5, alignItems: "center", justifyContent: "space-between" }}>
-          <Typography variant="subtitle1">Bildirimler</Typography>
-          <Typography variant="caption" color="text.secondary">
-            {unseen ? `${unseen} okunmamış` : "Hepsi görüldü"}
-          </Typography>
-        </Stack>
-        <Divider />
+    <CDropdown variant="nav-item" alignment="end" onShow={() => void reload().catch(() => undefined)}>
+      <CDropdownToggle caret={false} className="py-0 px-1">
+        <CIcon icon={cilBell} size="lg" />
+        {unseen ? (
+          <CBadge color="danger" position="top-end" shape="rounded-pill" className="ms-n2">
+            {unseen > 99 ? "99+" : unseen}
+          </CBadge>
+        ) : null}
+      </CDropdownToggle>
+      <CDropdownMenu className="pt-0" style={{ minWidth: 320, maxWidth: "92vw" }}>
+        <CDropdownHeader className="bg-body-tertiary fw-semibold d-flex justify-content-between">
+          <span>Bildirimler</span>
+          <span className="text-body-secondary small">{unseen ? `${unseen} okunmamış` : "Hepsi görüldü"}</span>
+        </CDropdownHeader>
         {rows.length === 0 ? (
-          <Box sx={{ px: 2, py: 3 }}>
-            <Typography color="text.secondary" variant="body2">
-              Açık uyarı yok
-            </Typography>
-          </Box>
+          <div className="px-3 py-3 text-body-secondary small">Açık uyarı yok</div>
         ) : (
-          <List dense sx={{ maxHeight: 420, overflow: "auto", py: 0 }}>
+          <div style={{ maxHeight: 420, overflow: "auto" }}>
             {rows.map((row) => (
-              <ListItem
+              <CDropdownItem
                 key={row.id}
-                alignItems="flex-start"
-                secondaryAction={
-                  canOperate(user.role) && !row.seen_at ? (
-                    <Button size="small" onClick={() => void markSeen(row.id)}>
-                      Görüldü
-                    </Button>
-                  ) : null
-                }
-                sx={{
-                  bgcolor: row.seen_at ? "transparent" : row.level === "kritik" ? "rgba(255, 86, 48, 0.06)" : "rgba(24, 119, 242, 0.04)",
-                  borderBottom: "1px solid",
-                  borderColor: "divider",
-                  pr: canOperate(user.role) && !row.seen_at ? 11 : 2,
+                className="d-flex flex-column align-items-stretch gap-1 py-2"
+                style={{
+                  whiteSpace: "normal",
+                  backgroundColor: row.seen_at
+                    ? undefined
+                    : row.level === "kritik"
+                      ? "rgba(255, 86, 48, 0.06)"
+                      : "rgba(24, 119, 242, 0.04)",
                 }}
+                as="div"
               >
-                <ListItemText
-                  primary={`${row.level === "kritik" ? "Kritik" : "Uyarı"} · ${ALERT_LABEL[row.code] ?? row.code}`}
-                  secondary={`${plates.get(row.vehicle_id ?? "") ?? "Araç"} · ${row.measured} / ${row.limit_value} dk${row.seen_at ? " · görüldü" : ""}`}
-                  slotProps={{
-                    primary: { variant: "body2", sx: { fontWeight: row.seen_at ? 400 : 600 } },
-                    secondary: { variant: "caption" },
-                  }}
-                />
-              </ListItem>
+                <div className={row.seen_at ? "fw-normal" : "fw-semibold"}>
+                  {row.level === "kritik" ? "Kritik" : "Uyarı"} · {ALERT_LABEL[row.code] ?? row.code}
+                </div>
+                <div className="small text-body-secondary">
+                  {plates.get(row.vehicle_id ?? "") ?? "Araç"} · {row.measured} / {row.limit_value} dk
+                  {row.seen_at ? " · görüldü" : ""}
+                </div>
+                {canOperate(user.role) && !row.seen_at ? (
+                  <CButton size="sm" color="primary" variant="ghost" className="align-self-start px-0" onClick={() => void markSeen(row.id)}>
+                    Görüldü
+                  </CButton>
+                ) : null}
+              </CDropdownItem>
             ))}
-          </List>
+          </div>
         )}
-      </Popover>
-    </>
+      </CDropdownMenu>
+    </CDropdown>
   );
 }

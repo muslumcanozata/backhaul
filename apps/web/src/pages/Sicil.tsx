@@ -1,14 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
-import CardHeader from "@mui/material/CardHeader";
-import List from "@mui/material/List";
-import ListItemButton from "@mui/material/ListItemButton";
-import Stack from "@mui/material/Stack";
-import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
+import { CButton, CCard, CCardBody, CCardHeader, CFormInput, CFormLabel } from "@coreui/react";
 import { api } from "../api";
 import { useSession } from "../session";
 import type { Role, Tenant, User } from "../types";
@@ -60,50 +51,66 @@ export function Sicil() {
   const roles: Role[] = ["tenant_admin", "dispatcher", "viewer"];
 
   return (
-    <Box sx={{ display: "grid", gap: 3, gridTemplateColumns: { xs: "1fr", lg: "360px 1fr" } }}>
-      <Stack spacing={3}>
-        <Card>
-          <CardHeader title="Firmalar" />
-          <List>
+    <div className="row g-3">
+      <div className="col-12 col-lg-4 d-flex flex-column gap-3">
+        <CCard>
+          <CCardHeader>
+            <strong>Firmalar</strong>
+          </CCardHeader>
+          <div className="list-group list-group-flush">
             {tenants.map((tenant) => (
-              <ListItemButton key={tenant.id} selected={tenant.id === selected} onClick={() => setSelected(tenant.id)}>
-                <Stack>
-                  <Typography variant="subtitle2">{tenant.name}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {tenant.code}
-                  </Typography>
-                </Stack>
-              </ListItemButton>
+              <button
+                key={tenant.id}
+                type="button"
+                className={`list-group-item list-group-item-action text-start ${tenant.id === selected ? "active" : ""}`}
+                onClick={() => setSelected(tenant.id)}
+              >
+                <div className="fw-semibold">{tenant.name}</div>
+                <div className={`small ${tenant.id === selected ? "text-white-50" : "text-body-secondary"}`}>{tenant.code}</div>
+              </button>
             ))}
-          </List>
-        </Card>
-        <Card component="form" onSubmit={createTenant}>
-          <CardHeader title="Firma aç" />
-          <CardContent>
-            <Stack spacing={2}>
-              <TextField label="Ad" value={name} onChange={(event) => setName(event.target.value)} required />
-              <TextField label="Kod" value={code} onChange={(event) => setCode(event.target.value)} slotProps={{ htmlInput: { pattern: "[a-z0-9-]+" } }} required />
-              <Button type="submit" variant="contained">
+          </div>
+        </CCard>
+        <CCard>
+          <CCardHeader>
+            <strong>Firma aç</strong>
+          </CCardHeader>
+          <CCardBody>
+            <form className="d-flex flex-column gap-3" onSubmit={createTenant}>
+              <div>
+                <CFormLabel>Ad</CFormLabel>
+                <CFormInput value={name} onChange={(event) => setName(event.target.value)} required />
+              </div>
+              <div>
+                <CFormLabel>Kod</CFormLabel>
+                <CFormInput value={code} onChange={(event) => setCode(event.target.value)} pattern="[a-z0-9-]+" required />
+              </div>
+              <CButton type="submit" color="primary">
                 Kaydet
-              </Button>
-            </Stack>
-          </CardContent>
-        </Card>
-      </Stack>
-      <Card>
-        <CardHeader title={firm?.name ?? "Firma"} subheader={firm ? `Kod ${firm.code}. Operasyon bu kabukta açılmaz.` : "Firma seçin."} />
-        <CardContent>
-          {firm ? (
-            <UsersPanel
-              users={users}
-              roles={roles}
-              createPath={`/tenants/${firm.id}/users`}
-              patchPath={(userId) => `/tenants/${firm.id}/users/${userId}`}
-              onChanged={async () => setUsers(await api<User[]>(`/tenants/${firm.id}/users`, token))}
-            />
-          ) : null}
-        </CardContent>
-      </Card>
-    </Box>
+              </CButton>
+            </form>
+          </CCardBody>
+        </CCard>
+      </div>
+      <div className="col-12 col-lg-8">
+        <CCard>
+          <CCardHeader>
+            <strong>{firm?.name ?? "Firma"}</strong>
+            <div className="small text-body-secondary">{firm ? `Kod ${firm.code}. Operasyon bu kabukta açılmaz.` : "Firma seçin."}</div>
+          </CCardHeader>
+          <CCardBody>
+            {firm ? (
+              <UsersPanel
+                users={users}
+                roles={roles}
+                createPath={`/tenants/${firm.id}/users`}
+                patchPath={(userId) => `/tenants/${firm.id}/users/${userId}`}
+                onChanged={async () => setUsers(await api<User[]>(`/tenants/${firm.id}/users`, token))}
+              />
+            ) : null}
+          </CCardBody>
+        </CCard>
+      </div>
+    </div>
   );
 }

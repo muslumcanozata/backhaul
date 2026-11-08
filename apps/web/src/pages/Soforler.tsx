@@ -1,14 +1,5 @@
 import { FormEvent, useState } from "react";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
-import CardHeader from "@mui/material/CardHeader";
-import List from "@mui/material/List";
-import ListItemButton from "@mui/material/ListItemButton";
-import Stack from "@mui/material/Stack";
-import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
+import { CButton, CCard, CCardBody, CCardHeader, CFormInput, CFormLabel } from "@coreui/react";
 import { api } from "../api";
 import { useFleet } from "../fleet-data";
 import { canWriteMaster } from "../labels";
@@ -44,76 +35,91 @@ export function Soforler() {
   }
 
   return (
-    <Box sx={{ display: "grid", gap: 3, gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" } }}>
-      <Stack spacing={3}>
-        <Card>
-          <CardHeader title="Şoförler" />
-          <List>
+    <div className="row g-3">
+      <div className="col-12 col-lg-6 d-flex flex-column gap-3">
+        <CCard>
+          <CCardHeader>
+            <strong>Şoförler</strong>
+          </CCardHeader>
+          <div className="list-group list-group-flush">
             {drivers.map((item) => {
               const bound = vehicles.find((row) => row.driver_id === item.id);
               return (
-                <ListItemButton key={item.id} selected={item.id === selected} onClick={() => setSelected(item.id)}>
-                  <Stack>
-                    <Typography variant="subtitle2">{item.name}</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {item.phone} · {bound ? bound.plate : "Araç yok"}
-                    </Typography>
-                  </Stack>
-                </ListItemButton>
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`list-group-item list-group-item-action text-start ${item.id === selected ? "active" : ""}`}
+                  onClick={() => setSelected(item.id)}
+                >
+                  <div className="fw-semibold">{item.name}</div>
+                  <div className={`small ${item.id === selected ? "text-white-50" : "text-body-secondary"}`}>
+                    {item.phone} · {bound ? bound.plate : "Araç yok"}
+                  </div>
+                </button>
               );
             })}
-          </List>
+          </div>
           {loading ? (
             <LoadingNote label="Şoförler yükleniyor…" />
           ) : drivers.length === 0 ? (
-            <CardContent>
-              <Typography color="text.secondary">Kayıtlı şoför yok.</Typography>
-            </CardContent>
+            <CCardBody>
+              <div className="text-body-secondary">Kayıtlı şoför yok.</div>
+            </CCardBody>
           ) : null}
-        </Card>
+        </CCard>
         {canWriteMaster(user.role) ? (
-          <Card component="form" onSubmit={create}>
-            <CardHeader title="Şoför ekle" />
-            <CardContent>
-              <Stack spacing={2}>
-                <TextField label="Ad" value={name} onChange={(event) => setName(event.target.value)} required />
-                <TextField label="Telefon" value={phone} onChange={(event) => setPhone(event.target.value)} required />
-                <TextField label="Kart" value={card} onChange={(event) => setCard(event.target.value)} />
-                <Button type="submit" variant="contained">
+          <CCard>
+            <CCardHeader>
+              <strong>Şoför ekle</strong>
+            </CCardHeader>
+            <CCardBody>
+              <form className="d-flex flex-column gap-3" onSubmit={create}>
+                <div>
+                  <CFormLabel>Ad</CFormLabel>
+                  <CFormInput value={name} onChange={(event) => setName(event.target.value)} required />
+                </div>
+                <div>
+                  <CFormLabel>Telefon</CFormLabel>
+                  <CFormInput value={phone} onChange={(event) => setPhone(event.target.value)} required />
+                </div>
+                <div>
+                  <CFormLabel>Kart</CFormLabel>
+                  <CFormInput value={card} onChange={(event) => setCard(event.target.value)} />
+                </div>
+                <CButton type="submit" color="primary">
                   Ekle
-                </Button>
-              </Stack>
-            </CardContent>
-          </Card>
+                </CButton>
+              </form>
+            </CCardBody>
+          </CCard>
         ) : null}
-      </Stack>
-      <Card>
-        <CardHeader title={driver?.name ?? "Şoför dosyası"} subheader={driver ? "SMS geçmişi rota bildirimleri açılınca bu dosyada durur." : "Dosya için bir şoför seçin."} />
-        {driver ? (
-          <CardContent>
-            <Stack spacing={1.5}>
+      </div>
+      <div className="col-12 col-lg-6">
+        <CCard>
+          <CCardHeader>
+            <strong>{driver?.name ?? "Şoför dosyası"}</strong>
+            <div className="small text-body-secondary">
+              {driver ? "SMS geçmişi rota bildirimleri açılınca bu dosyada durur." : "Dosya için bir şoför seçin."}
+            </div>
+          </CCardHeader>
+          {driver ? (
+            <CCardBody className="d-flex flex-column gap-3">
               <div>
-                <Typography variant="caption" color="text.secondary">
-                  Telefon
-                </Typography>
-                <Typography>{driver.phone}</Typography>
+                <div className="small text-body-secondary">Telefon</div>
+                <div>{driver.phone}</div>
               </div>
               <div>
-                <Typography variant="caption" color="text.secondary">
-                  Kart
-                </Typography>
-                <Typography>{driver.card_id ?? "Yok"}</Typography>
+                <div className="small text-body-secondary">Kart</div>
+                <div>{driver.card_id ?? "Yok"}</div>
               </div>
               <div>
-                <Typography variant="caption" color="text.secondary">
-                  Araç
-                </Typography>
-                <Typography>{vehicle ? vehicle.plate : "Bağlı araç yok"}</Typography>
+                <div className="small text-body-secondary">Araç</div>
+                <div>{vehicle ? vehicle.plate : "Bağlı araç yok"}</div>
               </div>
-            </Stack>
-          </CardContent>
-        ) : null}
-      </Card>
-    </Box>
+            </CCardBody>
+          ) : null}
+        </CCard>
+      </div>
+    </div>
   );
 }

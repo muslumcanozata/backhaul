@@ -1,9 +1,5 @@
 import { useEffect, useState } from "react";
-import Button from "@mui/material/Button";
-import Drawer from "@mui/material/Drawer";
-import Stack from "@mui/material/Stack";
-import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
+import { CButton, CFormInput, CFormLabel, COffcanvas, COffcanvasBody, COffcanvasHeader, COffcanvasTitle } from "@coreui/react";
 import { api } from "../api";
 import { REJECT_LABEL, TRAILER_LABEL, canOperate, clock } from "../labels";
 import { useSession } from "../session";
@@ -114,108 +110,122 @@ export function LoadFile({ load, onChanged, onClose }: { load: Load; onChanged: 
   const costs = detail.empty_km_cost || detail.loaded_km_cost ? `${detail.empty_km_cost ?? "—"} TL boş · ${detail.loaded_km_cost ?? "—"} TL dolu` : "Maliyet yok";
 
   return (
-    <Drawer anchor="right" open onClose={onClose} slotProps={{ paper: { sx: { width: { xs: "100%", sm: 420 }, p: 3 } } }}>
-      <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-        <Typography variant="h5">{detail.reference}</Typography>
-        <Button onClick={onClose}>Kapat</Button>
-      </Stack>
-      <Typography color="text.secondary" sx={{ mb: 2 }}>
-        {TRAILER_LABEL[detail.trailer_type] ?? detail.trailer_type} · {detail.tonnage} ton · {clock(detail.ready_at)}
-      </Typography>
-      <Stack spacing={1.5} sx={{ mb: 3 }}>
-        <Fact label="Paket" value={detail.calculated_at ? `${detail.rule_pack || "TR-AETR-2026"} · ${clock(detail.calculated_at)}` : (detail.rule_pack || "TR-AETR-2026")} />
-        <Fact label="Yükleme" value={`${detail.pickup_il} / ${detail.pickup_ilce}`} />
-        <Fact label="Boşaltma" value={`${detail.drop_il} / ${detail.drop_ilce}`} />
-        <Fact label="Teslim" value={`${clock(detail.deliver_start)} – ${clock(detail.deliver_end)}`} />
-        <Fact label="Navlun" value={detail.freight_try ? `${detail.freight_try} TL` : "Yok"} />
-        {detail.direction === "donus" ? <Fact label="Aracı firma" value={detail.broker_firm || "Yok"} /> : null}
-        {detail.customer ? <Fact label="Müşteri" value={detail.customer} /> : null}
-        <Fact label="Fayda" value={detail.benefit_try ? `${detail.benefit_try} TL · ${detail.empty_km ?? "—"} boş km · ${detail.loaded_km ?? "—"} dolu km` : "Hesap yok"} />
-        <Fact label="Maliyet" value={costs} />
-        {detail.toll_try ? <Fact label="Geçiş ücreti" value={`${detail.toll_try} TL`} /> : null}
-        {detail.base_km ? <Fact label="Üse dönüş" value={`${detail.base_km} km`} /> : null}
-        {detail.chain_note ? <Fact label="Zincir" value={detail.chain_note} /> : null}
-        <Fact label="Süre" value={detail.planned_break_min == null ? "Mola yok" : `${detail.planned_break_min} dk mola`} />
-        {detail.driver_advice ? <Fact label="Sürücü tavsiyesi" value={detail.driver_advice} /> : null}
-        <Fact label="SMS" value={detail.sms_job_id ? `${detail.sms_status} · ${detail.sms_job_id}` : (detail.sms_status ?? "Yok")} />
-        <Fact label="Takograf" value={tacho} />
-        <Fact label="Koordinat" value={detail.geocode_quality === "google" ? "Google" : "Yaklaşık"} />
-      </Stack>
-      {canOperate(user.role) && detail.sms_status === "iletilemedi" ? (
-        <Button sx={{ mb: 2 }} onClick={resend}>
-          SMS’i yeniden gönder
-        </Button>
-      ) : null}
-      {shown.length ? (
-        <Stack spacing={1} sx={{ mb: 2 }}>
-          <Typography variant="h6">Diğer yükler</Typography>
-          {shown.map((item) => (
-            <Typography key={item.reference} variant="body2" color="text.secondary">
-              {item.reference} · {REJECT_LABEL[item.code] ?? item.code}
-            </Typography>
-          ))}
-        </Stack>
-      ) : null}
-      {canOperate(user.role) && (detail.status === "atandi" || detail.status === "onerildi") ? (
-        <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-          <TextField label="Boşaltma ili" value={dropIl} onChange={(event) => setDropIl(event.target.value)} />
-          <TextField label="Boşaltma ilçesi" value={dropIlce} onChange={(event) => setDropIlce(event.target.value)} />
-          <Button onClick={revise} disabled={!dropIl || !dropIlce}>
-            Yeri güncelle
-          </Button>
-        </Stack>
-      ) : null}
-      <Typography variant="h6" sx={{ mb: 1 }}>
-        Araçlar
-      </Typography>
-      <Stack spacing={1.5}>
-        {candidates.map((item) => (
-          <Stack key={item.vehicle_id} direction="row" sx={{ alignItems: "center", justifyContent: "space-between", gap: 1 }}>
-            <div>
-              <Typography variant="subtitle2">{item.plate}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                {item.eligible
-                  ? `${item.empty_km} boş km · ${item.loaded_km} dolu km`
-                  : (REJECT_LABEL[item.code ?? ""] ?? item.code)}
-              </Typography>
+    <COffcanvas placement="end" visible onHide={onClose} style={{ width: "min(100%, 420px)" }}>
+      <COffcanvasHeader>
+        <COffcanvasTitle>{detail.reference}</COffcanvasTitle>
+        <CButton color="secondary" variant="ghost" onClick={onClose}>
+          Kapat
+        </CButton>
+      </COffcanvasHeader>
+      <COffcanvasBody>
+        <div className="text-body-secondary mb-3">
+          {TRAILER_LABEL[detail.trailer_type] ?? detail.trailer_type} · {detail.tonnage} ton · {clock(detail.ready_at)}
+        </div>
+        <div className="d-flex flex-column gap-3 mb-4">
+          <Fact
+            label="Paket"
+            value={detail.calculated_at ? `${detail.rule_pack || "TR-AETR-2026"} · ${clock(detail.calculated_at)}` : detail.rule_pack || "TR-AETR-2026"}
+          />
+          <Fact label="Yükleme" value={`${detail.pickup_il} / ${detail.pickup_ilce}`} />
+          <Fact label="Boşaltma" value={`${detail.drop_il} / ${detail.drop_ilce}`} />
+          <Fact label="Teslim" value={`${clock(detail.deliver_start)} – ${clock(detail.deliver_end)}`} />
+          <Fact label="Navlun" value={detail.freight_try ? `${detail.freight_try} TL` : "Yok"} />
+          {detail.direction === "donus" ? <Fact label="Aracı firma" value={detail.broker_firm || "Yok"} /> : null}
+          {detail.customer ? <Fact label="Müşteri" value={detail.customer} /> : null}
+          <Fact
+            label="Fayda"
+            value={detail.benefit_try ? `${detail.benefit_try} TL · ${detail.empty_km ?? "—"} boş km · ${detail.loaded_km ?? "—"} dolu km` : "Hesap yok"}
+          />
+          <Fact label="Maliyet" value={costs} />
+          {detail.toll_try ? <Fact label="Geçiş ücreti" value={`${detail.toll_try} TL`} /> : null}
+          {detail.base_km ? <Fact label="Üse dönüş" value={`${detail.base_km} km`} /> : null}
+          {detail.chain_note ? <Fact label="Zincir" value={detail.chain_note} /> : null}
+          <Fact label="Süre" value={detail.planned_break_min == null ? "Mola yok" : `${detail.planned_break_min} dk mola`} />
+          {detail.driver_advice ? <Fact label="Sürücü tavsiyesi" value={detail.driver_advice} /> : null}
+          <Fact label="SMS" value={detail.sms_job_id ? `${detail.sms_status} · ${detail.sms_job_id}` : (detail.sms_status ?? "Yok")} />
+          <Fact label="Takograf" value={tacho} />
+          <Fact label="Koordinat" value={detail.geocode_quality === "google" ? "Google" : "Yaklaşık"} />
+        </div>
+        {canOperate(user.role) && detail.sms_status === "iletilemedi" ? (
+          <CButton className="mb-3" color="secondary" variant="outline" onClick={resend}>
+            SMS’i yeniden gönder
+          </CButton>
+        ) : null}
+        {shown.length ? (
+          <div className="d-flex flex-column gap-2 mb-3">
+            <h2 className="h5 mb-0">Diğer yükler</h2>
+            {shown.map((item) => (
+              <div key={item.reference} className="small text-body-secondary">
+                {item.reference} · {REJECT_LABEL[item.code] ?? item.code}
+              </div>
+            ))}
+          </div>
+        ) : null}
+        {canOperate(user.role) && (detail.status === "atandi" || detail.status === "onerildi") ? (
+          <div className="d-flex flex-column flex-sm-row gap-2 mb-3">
+            <div className="flex-grow-1">
+              <CFormLabel>Boşaltma ili</CFormLabel>
+              <CFormInput value={dropIl} onChange={(event) => setDropIl(event.target.value)} />
             </div>
-            {operate && item.eligible ? (
-              <Button variant="contained" onClick={() => assign(item.vehicle_id)}>
-                Ata
-              </Button>
-            ) : null}
-          </Stack>
-        ))}
-      </Stack>
-      {canOperate(user.role) && detail.status === "onerildi" ? (
-        <Button sx={{ mt: 2 }} variant="contained" onClick={approve}>
-          Onayla ve kilitle
-        </Button>
-      ) : null}
-      {canOperate(user.role) && detail.status === "atandi" && !detail.locked ? (
-        <Button sx={{ mt: 2 }} variant="contained" onClick={lock}>
-          Kilitle
-        </Button>
-      ) : null}
-      {canOperate(user.role) && detail.status === "atandi" ? (
-        <Stack direction="row" spacing={1} sx={{ mt: 3 }}>
-          <Button color="inherit" onClick={cancel}>
-            Atamayı iptal et
-          </Button>
-          <Button onClick={deliver}>Teslim edildi</Button>
-        </Stack>
-      ) : null}
-    </Drawer>
+            <div className="flex-grow-1">
+              <CFormLabel>Boşaltma ilçesi</CFormLabel>
+              <CFormInput value={dropIlce} onChange={(event) => setDropIlce(event.target.value)} />
+            </div>
+            <div className="d-flex align-items-end">
+              <CButton color="secondary" onClick={revise} disabled={!dropIl || !dropIlce}>
+                Yeri güncelle
+              </CButton>
+            </div>
+          </div>
+        ) : null}
+        <h2 className="h5 mb-2">Araçlar</h2>
+        <div className="d-flex flex-column gap-3">
+          {candidates.map((item) => (
+            <div key={item.vehicle_id} className="d-flex align-items-center justify-content-between gap-2">
+              <div>
+                <div className="fw-semibold">{item.plate}</div>
+                <div className="small text-body-secondary">
+                  {item.eligible ? `${item.empty_km} boş km · ${item.loaded_km} dolu km` : (REJECT_LABEL[item.code ?? ""] ?? item.code)}
+                </div>
+              </div>
+              {operate && item.eligible ? (
+                <CButton color="primary" onClick={() => assign(item.vehicle_id)}>
+                  Ata
+                </CButton>
+              ) : null}
+            </div>
+          ))}
+        </div>
+        {canOperate(user.role) && detail.status === "onerildi" ? (
+          <CButton className="mt-3" color="primary" onClick={approve}>
+            Onayla ve kilitle
+          </CButton>
+        ) : null}
+        {canOperate(user.role) && detail.status === "atandi" && !detail.locked ? (
+          <CButton className="mt-3" color="primary" onClick={lock}>
+            Kilitle
+          </CButton>
+        ) : null}
+        {canOperate(user.role) && detail.status === "atandi" ? (
+          <div className="d-flex gap-2 mt-4">
+            <CButton color="secondary" variant="outline" onClick={cancel}>
+              Atamayı iptal et
+            </CButton>
+            <CButton color="primary" onClick={deliver}>
+              Teslim edildi
+            </CButton>
+          </div>
+        ) : null}
+      </COffcanvasBody>
+    </COffcanvas>
   );
 }
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <Typography variant="caption" color="text.secondary">
-        {label}
-      </Typography>
-      <Typography>{value}</Typography>
+      <div className="small text-body-secondary">{label}</div>
+      <div>{value}</div>
     </div>
   );
 }
