@@ -91,6 +91,7 @@ def _pull_telematics(runtime: AppState) -> None:
                 from app.returns import solve_returns
 
                 solve_returns(db, row.tenant_id, row, runtime.settings.google_maps_server_key, runtime.settings)
+                db.commit()
             except Exception:
                 db.rollback()
                 log.exception("Konum çekimi başarısız: %s", row.tenant_id)

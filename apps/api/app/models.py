@@ -170,6 +170,9 @@ class TachoState(Base):
     day_key: Mapped[str] = mapped_column(String(10), default="")
     week_key: Mapped[str] = mapped_column(String(10), default="")
     fortnight_key: Mapped[str] = mapped_column(String(10), default="")
+    activity_status: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    daily_rest_remain_min: Mapped[int | None] = mapped_column(nullable=True)
+    weekly_rest_remain_min: Mapped[int | None] = mapped_column(nullable=True)
 
 
 class TachoSample(Base):

@@ -51,8 +51,11 @@ TACHO_XML = """<?xml version="1.0"?>
               <driver_code>3996335697447020</driver_code>
               <datetime_utc0>2024-07-29T06:50:50+00:00</datetime_utc0>
               <current_plate>41 AZ 473</current_plate>
+              <current_status>DRIVE</current_status>
               <not_used_daily_drive>576</not_used_daily_drive>
               <not_used_weekly_drive>3336</not_used_weekly_drive>
+              <remaining_daily_rest>660</remaining_daily_rest>
+              <remaining_weekly_rest>2700</remaining_weekly_rest>
               <total_double_weekly_drive>1323</total_double_weekly_drive>
               <remaining_drive_period>296</remaining_drive_period>
               <remaining_long_drive_count>2</remaining_long_drive_count>
@@ -97,6 +100,9 @@ def test_parse_tacho_remaining_fields() -> None:
     assert rows[0].driver_code == "3996335697447020"
     assert rows[0].not_used_daily_drive == 576
     assert rows[0].remaining_long_drive_count == 2
+    assert rows[0].activity_status == "DRIVE"
+    assert rows[0].daily_rest_remain_min == 660
+    assert rows[0].weekly_rest_remain_min == 2700
 
 
 def test_seyir_pull_writes_position_and_measured_tacho(shared_client: TestClient, monkeypatch) -> None:

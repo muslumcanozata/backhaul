@@ -34,10 +34,11 @@ export function App() {
     if (!token) return;
     api<User>("/auth/me", token)
       .then(setUser)
-      .catch(() => {
+      .catch((err: unknown) => {
         sessionStorage.removeItem("token");
         setToken(null);
         setUser(null);
+        setError(err instanceof Error ? err.message : "Oturum doğrulanamadı");
       });
   }, [token]);
 

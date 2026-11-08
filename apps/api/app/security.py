@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from functools import lru_cache
 from uuid import UUID
 
 import bcrypt
@@ -27,13 +28,30 @@ def create_token(settings: Settings, user_id: UUID, tenant_id: UUID | None, role
     return jwt.encode(payload, settings.token_secret, algorithm="HS256")
 
 
+@lru_cache
+def _jwks_client(supabase_url: str) -> jwt.PyJWKClient:
+    return jwt.PyJWKClient(f"{supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json")
+
+
 def decode_token(settings: Settings, token: str) -> dict:
     options = {"require": ["exp", "sub"]}
+    algorithm = jwt.get_unverified_header(token).get("alg")
+    issuer = f"{settings.supabase_url.rstrip('/')}/auth/v1" if settings.supabase_enabled and settings.supabase_url else None
+    if settings.supabase_enabled and algorithm in {"ES256", "RS256"}:
+        key = _jwks_client(settings.supabase_url).get_signing_key_from_jwt(token).key
+        return jwt.decode(
+            token,
+            key,
+            algorithms=[algorithm],
+            audience="authenticated",
+            issuer=issuer,
+            options=options,
+        )
     kwargs: dict = {
         "algorithms": ["HS256"],
         "options": options,
     }
-    if settings.supabase_enabled:
+    if issuer:
         kwargs["audience"] = "authenticated"
-        kwargs["issuer"] = f"{settings.supabase_url.rstrip('/')}/auth/v1"
+        kwargs["issuer"] = issuer
     return jwt.decode(token, settings.token_secret, **kwargs)

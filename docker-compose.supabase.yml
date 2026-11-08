@@ -1,0 +1,21 @@
+# Yalnızca API. Postgres Supabase'tedir. Değerler apps/api/.env dosyasından gelir.
+# Nginx Proxy Manager: şema http, hedef bu makine, port 8090. /live için Websockets açık.
+
+services:
+  api:
+    image: backhaul-api
+    build:
+      context: ./apps/api
+    env_file:
+      - ./apps/api/.env
+    environment:
+      DEPLOYMENT_MODE: shared
+      TELEMATICS_POLL_SECONDS: ${TELEMATICS_POLL_SECONDS:-30}
+    ports:
+      - "8090:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 20s

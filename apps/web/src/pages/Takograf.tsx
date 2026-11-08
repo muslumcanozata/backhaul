@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
@@ -13,10 +13,21 @@ import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api } from "../api";
 import { clock, hours } from "../labels";
 import { useSession } from "../session";
 import type { TachoDriver, TachoDriverDetail } from "../types";
+
+const ACTIVITY_LABEL: Record<string, string> = {
+  DRIVE: "Sürüş",
+  REST: "Dinlenme",
+  WORK: "İş",
+  AVAILABLE: "Müsait",
+  AVAIL: "Müsait",
+  BREAK: "Mola",
+  UNKNOWN: "Bilinmiyor",
+};
 
 export function Takograf({ initialDriver = "" }: { initialDriver?: string }) {
   const { token, notice } = useSession();
@@ -49,22 +60,75 @@ export function Takograf({ initialDriver = "" }: { initialDriver?: string }) {
     window.location.hash = `takograf/${id}`;
   }
 
-  const current = detail ?? rows.find((item) => item.driver_id === selected) ?? null;
+  const ordered = useMemo(
+    () =>
+      [...rows].sort((a, b) => {
+        if (a.warning !== b.warning) return a.warning ? -1 : 1;
+        if (a.daily_remain !== b.daily_remain) return a.daily_remain - b.daily_remain;
+        return a.name.localeCompare(b.name, "tr");
+      }),
+    [rows],
+  );
+
+  const summary = useMemo(
+    () => ({
+      warning: rows.filter((item) => item.warning).length,
+      estimated: rows.filter((item) => item.source === "tahmini").length,
+      noVehicle: rows.filter((item) => !item.plate).length,
+    }),
+    [rows],
+  );
+
+  const current = detail ?? ordered.find((item) => item.driver_id === selected) ?? null;
+
+  const dailySeries = useMemo(() => {
+    if (!detail?.samples.length) return [];
+    return [...detail.samples]
+      .sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime())
+      .map((item) => ({
+        at: clock(item.recorded_at),
+        daily: item.daily_min,
+        source: item.source,
+      }));
+  }, [detail]);
 
   return (
-    <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", lg: "340px 1fr" }, alignItems: "start" }}>
-      <Card>
-        <CardHeader title="Dijital takograf" subheader={`${rows.length} sürücü · AETR limitleri`} />
-        <Stack>
-          {rows.map((item) => (
-            <ListItemButton key={item.driver_id} selected={item.driver_id === selected} onClick={() => choose(item.driver_id)}>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: { xs: "column", lg: "row" },
+        gap: 2,
+        height: { xs: "auto", lg: "calc(100dvh - 160px)" },
+        minHeight: { lg: 480 },
+      }}
+    >
+      <Card
+        sx={{
+          width: { lg: 340 },
+          flexShrink: 0,
+          display: "flex",
+          flexDirection: "column",
+          height: { xs: "min(420px, 50dvh)", lg: "auto" },
+          minHeight: 0,
+        }}
+      >
+        <CardHeader title="Dijital takograf" subheader={`${rows.length} sürücü · kalan güne göre`} />
+        <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1, px: 2, pb: 1.5 }}>
+          <Chip size="small" color={summary.warning ? "warning" : "default"} label={`Sınır yakın ${summary.warning}`} />
+          <Chip size="small" label={`Tahmini ${summary.estimated}`} />
+          <Chip size="small" label={`Araçsız ${summary.noVehicle}`} />
+        </Stack>
+        <Stack sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+          {ordered.map((item) => (
+            <ListItemButton key={item.driver_id} selected={item.driver_id === selected} onClick={() => choose(item.driver_id)} sx={{ flexShrink: 0 }}>
               <Stack spacing={0.75} sx={{ width: "100%" }}>
                 <Stack direction="row" sx={{ justifyContent: "space-between", gap: 1 }}>
                   <Typography variant="subtitle2">{item.name}</Typography>
                   {item.warning ? <Chip size="small" color="warning" label="Sınır yakın" /> : null}
                 </Stack>
                 <Typography variant="caption" color="text.secondary">
-                  {item.plate ?? "Araç yok"} · {item.source === "olculmus" ? "Ölçülmüş" : item.source === "tahmini" ? "Tahmini" : "Kayıt yok"}
+                  {item.plate ?? "Araç yok"} · {sourceLabel(item.source)}
+                  {item.activity_status ? ` · ${activityLabel(item.activity_status)}` : ""}
                 </Typography>
                 <Meter label="Gün" used={item.daily_used} limit={item.daily_limit} remain={item.daily_remain} compact />
               </Stack>
@@ -78,8 +142,8 @@ export function Takograf({ initialDriver = "" }: { initialDriver?: string }) {
         </Stack>
       </Card>
 
-      <Stack spacing={2}>
-        <Card>
+      <Stack spacing={2} sx={{ flex: 1, minWidth: 0, minHeight: 0, overflow: { lg: "hidden" } }}>
+        <Card sx={{ flexShrink: 0 }}>
           <CardHeader
             title={current?.name ?? "Sürücü seçin"}
             subheader={
@@ -90,6 +154,12 @@ export function Takograf({ initialDriver = "" }: { initialDriver?: string }) {
           />
           {current ? (
             <CardContent>
+              <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1, mb: 2 }}>
+                <Chip size="small" label={sourceLabel(current.source)} color={current.source === "olculmus" ? "success" : "default"} />
+                {current.activity_status ? <Chip size="small" label={activityLabel(current.activity_status)} /> : null}
+                {current.daily_rest_remain_min != null ? <Chip size="small" label={`Günlük dinlenme kalan ${hours(current.daily_rest_remain_min)}`} /> : null}
+                {current.weekly_rest_remain_min != null ? <Chip size="small" label={`Haftalık dinlenme kalan ${hours(current.weekly_rest_remain_min)}`} /> : null}
+              </Stack>
               <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" } }}>
                 <Meter label="Kesintisiz sürüş" used={current.continuous_used} limit={current.continuous_limit} remain={current.continuous_remain} />
                 <Meter label="Günlük sürüş" used={current.daily_used} limit={current.daily_limit} remain={current.daily_remain} />
@@ -104,33 +174,63 @@ export function Takograf({ initialDriver = "" }: { initialDriver?: string }) {
           ) : null}
         </Card>
 
-        <Card>
+        <Card sx={{ flexShrink: 0 }}>
+          <CardHeader title="Günlük kullanım" subheader="Seçili sürücünün örneklenen günlük sürüş dakikası" />
+          <CardContent sx={{ height: 220 }}>
+            {dailySeries.length > 1 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={dailySeries} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="at" tick={{ fontSize: 11 }} minTickGap={24} />
+                  <YAxis width={36} tick={{ fontSize: 11 }} allowDecimals={false} />
+                  <Tooltip formatter={(value) => [`${value} dk`, "Günlük"]} />
+                  <Line type="monotone" dataKey="daily" name="Günlük" stroke="#1877F2" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <Typography color="text.secondary">{current ? "Çizgi için en az iki örnek gerekir." : "Çizgi için bir sürücü seçin."}</Typography>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card
+          sx={{
+            flex: { lg: 1 },
+            minHeight: 0,
+            height: { xs: "min(420px, 50dvh)", lg: "auto" },
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+          }}
+        >
           <CardHeader title="Takograf geçmişi" subheader="Seyir ölçümleri ve tahmini sayaç örnekleri, yeniden eskiye" />
           {detail?.samples.length ? (
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Zaman</TableCell>
-                  <TableCell>Kaynak</TableCell>
-                  <TableCell align="right">Kesintisiz</TableCell>
-                  <TableCell align="right">Günlük</TableCell>
-                  <TableCell align="right">Haftalık</TableCell>
-                  <TableCell align="right">İki haftalık</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {detail.samples.map((item) => (
-                  <TableRow key={item.recorded_at}>
-                    <TableCell>{clock(item.recorded_at)}</TableCell>
-                    <TableCell>{item.source === "olculmus" ? "Ölçülmüş" : "Tahmini"}</TableCell>
-                    <TableCell align="right">{hours(item.continuous_min)}</TableCell>
-                    <TableCell align="right">{hours(item.daily_min)}</TableCell>
-                    <TableCell align="right">{hours(item.weekly_min)}</TableCell>
-                    <TableCell align="right">{hours(item.fortnight_min)}</TableCell>
+            <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+              <Table size="small" stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Zaman</TableCell>
+                    <TableCell>Kaynak</TableCell>
+                    <TableCell align="right">Kesintisiz</TableCell>
+                    <TableCell align="right">Günlük</TableCell>
+                    <TableCell align="right">Haftalık</TableCell>
+                    <TableCell align="right">İki haftalık</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHead>
+                <TableBody>
+                  {detail.samples.map((item) => (
+                    <TableRow key={item.recorded_at}>
+                      <TableCell>{clock(item.recorded_at)}</TableCell>
+                      <TableCell>{item.source === "olculmus" ? "Ölçülmüş" : "Tahmini"}</TableCell>
+                      <TableCell align="right">{hours(item.continuous_min)}</TableCell>
+                      <TableCell align="right">{hours(item.daily_min)}</TableCell>
+                      <TableCell align="right">{hours(item.weekly_min)}</TableCell>
+                      <TableCell align="right">{hours(item.fortnight_min)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Box>
           ) : (
             <CardContent>
               <Typography color="text.secondary">{current ? "Bu sürücüde henüz geçmiş yok." : "Geçmiş için bir sürücü seçin."}</Typography>
@@ -140,6 +240,17 @@ export function Takograf({ initialDriver = "" }: { initialDriver?: string }) {
       </Stack>
     </Box>
   );
+}
+
+function sourceLabel(source: string | null | undefined) {
+  if (source === "olculmus") return "Ölçülmüş";
+  if (source === "tahmini") return "Tahmini";
+  return "Kayıt yok";
+}
+
+function activityLabel(value: string) {
+  const key = value.trim().toUpperCase();
+  return ACTIVITY_LABEL[key] ?? value;
 }
 
 function Meter({
